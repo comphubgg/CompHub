@@ -78,8 +78,8 @@ const FARBE: Record<string, string> = {
   PARSED: 'text-emerald-400 border-emerald-500/40 bg-emerald-500/10',
   FAILED: 'text-rose-400 border-rose-500/40 bg-rose-500/10',
   NOT_AVAILABLE: 'text-white/40 border-white/10 bg-white/[0.03]',
-  DOWNLOADING: 'text-sky-400 border-sky-500/40 bg-sky-500/10',
-  PARSING: 'text-sky-400 border-sky-500/40 bg-sky-500/10',
+  DOWNLOADING: 'text-akz border-akz/40 bg-akz/10',
+  PARSING: 'text-akz border-akz/40 bg-akz/10',
   PENDING: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
   ABGELAUFEN: 'text-white/40 border-white/10 bg-white/[0.03]',
   RETRYING: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
@@ -152,14 +152,14 @@ function Ueberblick({ fenster }: { fenster: Fenster[] }) {
           was="The scheduled runs fetch them by themselves — Epic keeps a replay for 31 days." />
         <Kachel wert={zahl(verloren)} titel="can no longer be fetched" farbe="text-white/70"
           was={`Older than 31 days: Epic has deleted these replays. Plus ${zahl(ohneReplay)} matches from match days that never had replays (Arena).`} />
-        <Kachel wert={zahl(fenster.length)} titel="match days recorded" farbe="text-sky-400"
+        <Kachel wert={zahl(fenster.length)} titel="match days recorded" farbe="text-akz"
           was="Every match day with its rounds, including the open qualifiers." />
       </div>
       {/* Das Tempo (Betreiber, 7.11.2026): wie viele je Stunde fertig werden und wann das Offene bei diesem Tempo abgearbeitet ist. Ziel: ohne Cup steht hier 0. */}
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
-        <Kachel wert={zahl(stunde)} titel="analysed in the last hour" farbe="text-sky-400"
+        <Kachel wert={zahl(stunde)} titel="analysed in the last hour" farbe="text-akz"
           was={`${zahl(tag)} in the last 24 hours`} />
-        <Kachel wert={zahl(Math.round(tag / 24))} titel="on average per hour" farbe="text-sky-400"
+        <Kachel wert={zahl(Math.round(tag / 24))} titel="on average per hour" farbe="text-akz"
           was="Averaged over the last 24 hours." />
         <Kachel wert={!offenInFrist ? '0' : stunde > 0 ? `${Math.max(1, Math.ceil(offenInFrist / stunde))} h` : tag > 0 ? `${Math.max(1, Math.ceil(offenInFrist / (tag / 24)))} h` : '–'}
           titel="until everything open is done" farbe={!offenInFrist ? 'text-emerald-400' : 'text-amber-300'}
@@ -310,10 +310,10 @@ export default function ReplayVerwaltung() {
                 className="w-[27rem] max-w-full rounded-lg border border-white/10
                            bg-white/[0.04] px-4 py-2.5 font-mono text-sm
                            text-white outline-none placeholder:text-white/30
-                           focus:border-sky-500" />
+                           focus:border-akz" />
               <button onClick={testen} disabled={laeuft || !eingabe.trim()}
-                className="rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold
-                           text-white transition hover:bg-sky-400
+                className="rounded-lg bg-akz px-5 py-2.5 text-sm font-semibold
+                           text-[#04050a] transition hover:brightness-110
                            disabled:cursor-not-allowed disabled:opacity-40">
                 {laeuft ? <T>Checking …</T> : <T>Analyse replay</T>}
               </button>
@@ -379,7 +379,7 @@ export default function ReplayVerwaltung() {
                                   <td className="px-3 py-1.5 text-white/70">
                                     {t.spieler.map((p) => name(p.id) !== p.id.slice(0, 8) ? name(p.id) : (p.name ?? name(p.id))).join('  +  ')}
                                   </td>
-                                  <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-sky-400">
+                                  <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-akz">
                                     {t.kills}
                                   </td>
                                 </tr>
@@ -402,7 +402,7 @@ export default function ReplayVerwaltung() {
                         ] as Array<[string, string]>).map(([l, v]) => (
                           <div key={l} className="rounded-lg border border-white/10
                                                   bg-black/30 px-4 py-3">
-                            <p className="text-lg font-bold text-sky-400">{v}</p>
+                            <p className="text-lg font-bold text-akz">{v}</p>
                             <p className="mt-0.5 text-[10px] font-semibold uppercase
                                           tracking-[0.14em] text-white/40">
                               <T>{l}</T>
@@ -435,7 +435,7 @@ export default function ReplayVerwaltung() {
                                   {name(z.epicId)}
                                 </td>
                                 <td className="px-3 py-1.5 text-right font-semibold
-                                               tabular-nums text-sky-400">
+                                               tabular-nums text-akz">
                                   {z.kills}
                                 </td>
                                 <td className="px-3 py-1.5 text-right tabular-nums
@@ -624,7 +624,7 @@ export default function ReplayVerwaltung() {
                       {f.datum ? new Date(f.datum).toLocaleDateString('de-DE') : ''}
                     </span>
                     {f.wartet && (
-                      <span className="rounded border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-400"
+                      <span className="rounded border border-akz/40 bg-akz/10 px-1.5 py-0.5 text-[10px] text-akz"
                         title={t('The collector works through the oldest window first; this one is queued and comes next.')}>
                         <T>queued</T>
                       </span>

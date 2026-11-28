@@ -27,7 +27,7 @@ function KopierKnopf({ text, label }: { text: string; label: string }) {
   return (
     <button type="button" disabled={!text}
       onClick={() => { void navigator.clipboard.writeText(text).then(() => { setOk(true); window.setTimeout(() => setOk(false), 1500); }); }}
-      className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 ${ok ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300' : 'border-white/15 text-white/70 hover:border-sky-500 hover:text-sky-300'}`}>
+      className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-bold transition disabled:opacity-40 ${ok ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300' : 'border-white/15 text-white/70 hover:border-akz hover:text-akz'}`}>
       {ok ? '✓ Copied' : label}
     </button>
   );
@@ -53,7 +53,7 @@ export default function PartnerSeite() {
   if (!stand) return <main className="" />;
 
   const setzeE = (k: keyof PartnerEinstellungen, w: string) => setStand({ ...stand, e: { ...stand.e, [k]: w } });
-  const feld = 'w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40';
+  const feld = 'w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-akz focus:ring-1 focus:ring-akz/40';
   const fehlt = (['name', 'discord', 'x'] as const).filter((k) => !stand.e[k].trim());
   const v = PARTNER_VORLAGEN.find((x) => x.id === offen) ?? PARTNER_VORLAGEN[0];
   const text = fertig[v.id] ?? '';
@@ -66,7 +66,7 @@ export default function PartnerSeite() {
           text={<T>Ready requests to streamers. Enter your details once at the top, then every template fills itself. Copy and send yourself – nothing is sent from here.</T>} />
 
         {/* Die Angaben fuer alle Vorlagen */}
-        <section className="mb-5 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-4">
+        <section className="mb-5 fl !rounded-2xl p-4">
           <div className="grid gap-3 md:grid-cols-5">
             {([['name', 'Your name', 'z. B. Max'], ['discord', 'Discord-Link', 'discord.gg/…'], ['x', 'X-Handle', '@thecomphub'],
               ['angebot', 'Angebot', 'free VIP access'], ['video', 'Video link (for DMs)', 'YouTube / X-Post']] as const).map(([k, label, ph]) => (
@@ -84,9 +84,9 @@ export default function PartnerSeite() {
           <nav className="flex flex-col gap-1.5">
             {PARTNER_VORLAGEN.map((x) => (
               <button key={x.id} type="button" onClick={() => setOffen(x.id)}
-                className={`rounded-xl border px-3 py-2.5 text-left transition ${offen === x.id ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 bg-white/[0.035] backdrop-blur-xl hover:border-white/25'}`}>
+                className={`rounded-xl border px-3 py-2.5 text-left transition ${offen === x.id ? 'border-akz bg-akz/10' : 'border-white/10 bg-white/[0.035] backdrop-blur-xl hover:border-white/25'}`}>
                 <span className="flex items-center gap-2">
-                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${x.art === 'mail' ? 'bg-sky-500/20 text-sky-300' : 'bg-violet-500/20 text-violet-300'}`}>{x.art === 'mail' ? 'Mail' : 'DM'}</span>
+                  <span className={`rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${x.art === 'mail' ? 'bg-akz/20 text-akz' : 'bg-violet-500/20 text-violet-300'}`}>{x.art === 'mail' ? 'Mail' : 'DM'}</span>
                   <span className="min-w-0 flex-1 truncate text-sm font-bold text-white">{x.titel}</span>
                   {stand.gesendet[x.id] ? <span className="text-xs text-emerald-400" title={new Date(stand.gesendet[x.id]).toLocaleString()}>✓</span> : null}
                 </span>
@@ -96,13 +96,13 @@ export default function PartnerSeite() {
           </nav>
 
           {/* Die gewaehlte Vorlage */}
-          <section className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-5">
+          <section className="fl !rounded-2xl p-5">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-extrabold text-white">{v.titel}</h2>
               <div className="flex flex-wrap gap-2">
                 {v.art === 'mail' && v.an && (
                   <a href={`mailto:${v.an}?subject=${encodeURIComponent(v.betreff)}&body=${encodeURIComponent(text)}`}
-                    className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-sky-400"><T>Open in mail</T></a>
+                    className="rounded-lg bg-akz px-3 py-1.5 text-xs font-bold text-[#04050a] transition hover:brightness-110"><T>Open in mail</T></a>
                 )}
                 <button type="button"
                   onClick={() => { const g = { ...stand.gesendet }; if (g[v.id]) delete g[v.id]; else g[v.id] = Date.now(); setStand({ ...stand, gesendet: g }); }}

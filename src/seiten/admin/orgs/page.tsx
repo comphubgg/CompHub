@@ -51,7 +51,7 @@ interface Treffer { epicId: string; name: string; anzeige?: string; land?: strin
 
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
 const feld = 'rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm '
-  + 'text-white outline-none placeholder:text-white/30 focus:border-sky-500';
+  + 'text-white outline-none placeholder:text-white/30 focus:border-akz';
 
 /** Namen suchen - die Konto-Id kommt aus der Suche der Statistik. */
 function KontoSuche({ onWahl, platzhalter }: { onWahl: (t: Treffer) => void; platzhalter: string }) {
@@ -76,7 +76,7 @@ function KontoSuche({ onWahl, platzhalter }: { onWahl: (t: Treffer) => void; pla
     <div className="relative">
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={platzhalter}
         className={`${feld} w-full`} />
-      {laedt && <span className="absolute right-3 top-2.5 h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-sky-400" />}
+      {laedt && <span className="absolute right-3 top-2.5 h-4 w-4 animate-spin rounded-full border-2 border-white/15 border-t-akz" />}
       {q.trim().length >= 2 && treffer.length > 0 && (
         <div className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-lg border border-white/15 bg-black/40 shadow-xl">
           {treffer.map((t) => (
@@ -306,7 +306,7 @@ export default function OrgsAdmin() {
         {/* --------------------------------------------------- Die Liste */}
         <div>
           <button type="button" onClick={() => void neueOrg()}
-            className="mb-3 w-full rounded-lg bg-sky-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-sky-400">
+            className="mb-3 w-full rounded-lg bg-akz px-3 py-2 text-sm font-semibold text-[#04050a] transition hover:brightness-110">
             + <T>New organisation</T>
           </button>
           <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('Namen suchen …')}
@@ -327,7 +327,7 @@ export default function OrgsAdmin() {
             {gefiltert.map((o) => (
               <button key={o.id} type="button" onClick={() => { setWahl(o.id); setLoeschFrage(false); }}
                 className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left transition ${wahl === o.id
-                  ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 hover:border-white/25'}`}>
+                  ? 'border-akz bg-akz/10' : 'border-white/10 hover:border-white/25'}`}>
                 {o.logo
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={o.logo} alt="" className="h-8 w-8 shrink-0 rounded-md object-contain" />
@@ -362,7 +362,7 @@ export default function OrgsAdmin() {
                   ? <img src={org.logo} alt="" className="h-24 w-24 rounded-xl bg-black/40 object-contain p-1.5" />
                   : <span className="flex h-24 w-24 items-center justify-center rounded-xl border border-dashed border-white/15 text-xs text-white/30"><T>no logo</T></span>}
                 <button type="button" onClick={() => dateiFeld.current?.click()}
-                  className="text-xs text-sky-400 hover:underline"><T>Upload logo</T></button>
+                  className="text-xs text-akz hover:underline"><T>Upload logo</T></button>
                 {org.logo && (
                   <button type="button" onClick={() => aendere(org.id, (o) => ({ ...o, logo: null }), true)}
                     className="text-xs text-white/40 hover:text-rose-400"><T>Remove logo</T></button>
@@ -402,7 +402,7 @@ export default function OrgsAdmin() {
                     {REGIONEN.map((r) => (
                       <button key={r} type="button" onClick={() => aendere(org.id, (o) => ({ ...o, region: r }), true)}
                         className={`rounded-lg border px-3 py-1.5 text-sm transition ${org.region === r
-                          ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-white/10 text-white/55 hover:border-white/25'}`}>
+                          ? 'border-akz bg-akz/10 text-akz' : 'border-white/10 text-white/55 hover:border-white/25'}`}>
                         {r}
                       </button>
                     ))}
@@ -421,16 +421,16 @@ export default function OrgsAdmin() {
                   ? <img src={org.banner} alt="" className="h-full w-full object-cover" />
                   : <span className="flex h-full w-full items-center justify-center text-xs text-white/30"><T>no banner</T></span>}
                 {bannerLaedt && <span className="absolute inset-0 flex items-center justify-center bg-black/60">
-                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/25 border-t-sky-400" /></span>}
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/25 border-t-akz" /></span>}
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 <button type="button" onClick={() => bannerFeld.current?.click()} disabled={bannerLaedt}
-                  className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/85 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
+                  className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/85 transition hover:border-akz hover:text-akz disabled:opacity-50">
                   <T>Upload banner</T>
                 </button>
                 <button type="button" disabled={!org.x || bannerLaedt} onClick={() => org.x && void bannerHochladen(org, { vonX: org.x })}
                   title={org.x ? `@${org.x}` : t('Enter the X account first')}
-                  className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/85 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
+                  className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/85 transition hover:border-akz hover:text-akz disabled:opacity-50">
                   <T>Take banner from X</T>
                 </button>
                 {org.banner && (
@@ -458,7 +458,7 @@ export default function OrgsAdmin() {
                       return (
                         <>
                           <label className="relative h-12 w-10 shrink-0 cursor-pointer overflow-hidden rounded-md border border-white/10
-                                            bg-white/[0.035] backdrop-blur-xl hover:border-sky-500"
+                                            bg-white/[0.035] backdrop-blur-xl hover:border-akz"
                             title={foto ? t('Replace photo') : t('Foto hochladen')}>
                             {foto
                               /* eslint-disable-next-line @next/next/no-img-element */
@@ -469,7 +469,7 @@ export default function OrgsAdmin() {
                                 Hochladen sind beide null, und jeder Spieler ohne Konto
                                 zeigte dauerhaft den Ladekringel. */}
                             {fotoLaedt !== null && fotoLaedt === schluessel && <span className="absolute inset-0 flex items-center justify-center bg-black/60">
-                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/25 border-t-sky-400" /></span>}
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/25 border-t-akz" /></span>}
                             <input type="file" accept="image/*" className="hidden"
                               onChange={(e) => { const d = e.target.files?.[0]; e.target.value = ''; if (d) void fotoHochladen(org.id, i, s, d); }} />
                           </label>
@@ -510,7 +510,7 @@ export default function OrgsAdmin() {
                         <button key={r} type="button"
                           onClick={() => aendere(org.id, (o) => ({ ...o, spieler: o.spieler.map((x, j) => (j === i ? { ...x, rolle: r } : x)) }), true)}
                           className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${s.rolle === r
-                            ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-white/10 text-white/55 hover:border-white/25'}`}>
+                            ? 'border-akz bg-akz/10 text-akz' : 'border-white/10 text-white/55 hover:border-white/25'}`}>
                           {titel}
                         </button>
                       ))}
@@ -545,7 +545,7 @@ export default function OrgsAdmin() {
                 <input value={ohneKonto} onChange={(e) => setOhneKonto(e.target.value)}
                   placeholder={t('Content creator without Epic account: type a name …')} className={`${feld} flex-1`} />
                 <button type="submit" disabled={!ohneKonto.trim()}
-                  className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/85 transition hover:border-sky-500 disabled:opacity-40">
+                  className="rounded-lg border border-white/15 px-3 py-1.5 text-sm text-white/85 transition hover:border-akz disabled:opacity-40">
                   + <T>add</T>
                 </button>
               </form>
@@ -577,7 +577,7 @@ export default function OrgsAdmin() {
               </div>
               <button type="button"
                 onClick={() => setOrgs((alt) => alt.map((o) => (o.id === org.id ? { ...o, extras: [...o.extras, { titel: '', betrag: 0, datum: null }] } : o)))}
-                className="mt-2 text-sm text-sky-400 hover:underline">+ <T>Add earning</T></button>
+                className="mt-2 text-sm text-akz hover:underline">+ <T>Add earning</T></button>
             </div>
 
             {/* ----------------------------------------------- Loeschen */}

@@ -303,8 +303,8 @@ export default function FlaggenPflege() {
     return <NurAdmins />;
   }
 
-  const chip = (an: boolean) => `rounded-full px-3 py-1 text-xs font-bold transition ${an ? 'bg-sky-500 text-white' : 'border border-white/10 bg-white/[0.035] backdrop-blur-xl text-white/55 hover:text-white'}`;
-  const zelle = 'w-full rounded-md border bg-black/40 px-2 py-1 text-sm text-white outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500/40';
+  const chip = (an: boolean) => `rounded-full px-3 py-1 text-xs font-bold transition ${an ? 'bg-akz text-[#04050a]' : 'border border-white/10 bg-white/[0.035] backdrop-blur-xl text-white/55 hover:text-white'}`;
+  const zelle = 'w-full rounded-md border bg-black/40 px-2 py-1 text-sm text-white outline-none focus:border-akz focus:ring-1 focus:ring-akz/40';
   const blaettern = (
     <div className="flex items-center gap-2 text-xs text-white/55">
       <button type="button" className="rounded-md border border-white/10 px-2 py-1 disabled:opacity-40" disabled={seite === 0} onClick={() => setSeite(seite - 1)}>←</button>
@@ -318,19 +318,19 @@ export default function FlaggenPflege() {
       <div className="">
         <SeitenKopf className="mb-5" marke={<T>Spieler & Teams</T>} titel={<T>Flags & X accounts</T>}
           text={<T>Important players without a flag or X account, by importance. Tab: next cell · Enter: next row · Esc: undo · saved when you leave the row.</T>}
-          rechts={<Link href="/admin/players" className="rounded-lg border border-sky-500/50 px-3 py-2 text-sm font-semibold text-sky-300 hover:bg-sky-500/10">Player Center</Link>} />
+          rechts={<Link href="/admin/players" className="rounded-lg border border-akz/50 px-3 py-2 text-sm font-semibold text-akz hover:bg-akz/10">Player Center</Link>} />
 
         {ladeFehler && <p className="mb-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{ladeFehler}</p>}
 
         {d && (
           <section className="mb-4 grid gap-3 sm:grid-cols-4">
             {([['No flag', offen.land, offen.start.land], ['No X account', offen.x, offen.start.x], ['Neither', offen.beide, offen.start.beide]] as const).map(([titel, jetzt, start]) => (
-              <div key={titel} className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl px-4 py-3">
+              <div key={titel} className="fl !rounded-2xl px-4 py-3">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40"><T>{titel}</T></p>
                 <p className="mt-1 text-2xl font-extrabold tabular-nums text-white">{jetzt}<span className="ml-2 text-xs font-semibold text-white/40">/ {start} <T>while loading</T></span></p>
               </div>
             ))}
-            <div className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl px-4 py-3 text-[11px] leading-relaxed text-white/40">
+            <div className="fl !rounded-2xl px-4 py-3 text-[11px] leading-relaxed text-white/40">
               {d.wichtig} <T>important players</T> · <T>Stand</T> {new Date(d.stand).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })}<br />
               <T>already complete</T>: {d.ausgeschlossen.vollstaendig} · excluded: {d.ausgeschlossen.geloescht + d.ausgeschlossen.turnierkonto} (deleted {d.ausgeschlossen.geloescht}, tournament accounts {d.ausgeschlossen.turnierkonto}) · <T>without a known name</T>: {d.ausgeschlossen.ohneName}
             </div>
@@ -350,7 +350,7 @@ export default function FlaggenPflege() {
           <label className="ml-2 flex items-center gap-1.5 text-xs text-white/55" title="Unticked: only players with at least two FNCS finals/heats or three late FNCS rounds"><input type="checkbox" checked={alleZeigen} onChange={(e) => setAlleZeigen(e.target.checked)} data-alle /> <T>Show all important ones</T></label>
           <label className="ml-2 flex items-center gap-1.5 text-xs text-white/55"><input type="checkbox" checked={twitchZeigen} onChange={(e) => setTwitchZeigen(e.target.checked)} /> Twitch</label>
           <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Name or Epic ID …" aria-label="Search"
-            className="ml-auto w-full max-w-[240px] rounded-lg border border-white/10 bg-white/[0.035] backdrop-blur-xl px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500" />
+            className="ml-auto w-full max-w-[240px] fl !rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-akz" />
         </div>
 
         <div className="mb-2 flex items-center justify-between text-xs text-white/40">
@@ -358,7 +358,7 @@ export default function FlaggenPflege() {
           {blaettern}
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/[0.035] backdrop-blur-xl">
+        <div className="overflow-x-auto fl !rounded-xl">
           <table className="w-full min-w-[1100px] text-sm" data-flaggen-tabelle>
             <thead className="sticky top-0 z-10 bg-white/[0.035] backdrop-blur-xl">
               <tr className="border-b border-white/10 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
@@ -392,11 +392,11 @@ export default function FlaggenPflege() {
                   if (pruefe(f, e[f]).wert !== g[f] && e[f].trim() !== g[f]) return <p className="mt-0.5 text-[10px] font-semibold text-rose-300" data-herkunft="ungespeichert">● not saved</p>;
                   if (!g[f]) return null;
                   if (z.quelle[f] && !unterId.has(z.id)) return <p className="mt-0.5 truncate text-[10px] text-violet-300" data-herkunft="zweit" title="Saved, but not under this account - saving moves it here">saved at {z.quelle[f]}</p>;
-                  return <p className="mt-0.5 text-[10px] text-sky-400/80" data-herkunft="gespeichert">✓ saved</p>;
+                  return <p className="mt-0.5 text-[10px] text-akz/80" data-herkunft="gespeichert">✓ saved</p>;
                 };
                 const belegListe = (b: Beleg[]) => (
                   <ul className="mt-1 space-y-0.5 text-[10px] leading-snug text-white/55">
-                    {b.map((x, k) => <li key={k} className={x.stark ? 'text-emerald-300/90' : ''}>{x.stark ? '● ' : '○ '}{x.url ? <a href={x.url} target="_blank" rel="noreferrer" tabIndex={-1} className="hover:text-sky-300 hover:underline">{x.text}</a> : x.text}</li>)}
+                    {b.map((x, k) => <li key={k} className={x.stark ? 'text-emerald-300/90' : ''}>{x.stark ? '● ' : '○ '}{x.url ? <a href={x.url} target="_blank" rel="noreferrer" tabIndex={-1} className="hover:text-akz hover:underline">{x.text}</a> : x.text}</li>)}
                   </ul>
                 );
                 const zeigeWert = (f: Feld, w: string) => (f === 'x' ? `@${w}` : f === 'land' ? `${w}${landNach(w) ? ` · ${landNach(w)!.en}` : ''}` : w);
@@ -422,7 +422,7 @@ export default function FlaggenPflege() {
                     <details className="mt-1 rounded border border-dashed border-white/25 px-1.5 py-1" data-vorschlag={f}>
                       <summary className="flex cursor-pointer items-center gap-1.5 text-[10px] text-white/70">
                         <span className="truncate">Suggestion {zeigeWert(f, v.wert)}</span>
-                        <button type="button" tabIndex={-1} onClick={(ev) => { ev.preventDefault(); markieren(z.id, f, v.wert, 'angenommen'); setzeUndSpeichere(z, f, v.wert); }} title="Accept and save" className="ml-auto rounded border border-sky-500/50 px-1 text-sky-300 hover:bg-sky-500/10">✓</button>
+                        <button type="button" tabIndex={-1} onClick={(ev) => { ev.preventDefault(); markieren(z.id, f, v.wert, 'angenommen'); setzeUndSpeichere(z, f, v.wert); }} title="Accept and save" className="ml-auto rounded border border-akz/50 px-1 text-akz hover:bg-akz/10">✓</button>
                         <button type="button" tabIndex={-1} onClick={(ev) => { ev.preventDefault(); markieren(z.id, f, v.wert, 'abgelehnt'); }} title="Reject - will not be suggested again" className="rounded border border-white/25 px-1 text-white/55 hover:bg-white/[0.08]">✕</button>
                       </summary>
                       {belegListe(v.belege)}
@@ -432,13 +432,13 @@ export default function FlaggenPflege() {
                 };
                 return (
                   <tr key={z.id} onBlur={(ev) => zeileVerlassen(ev, z)} data-id={z.id}
-                    className={`border-b border-white/10 align-top ${fertig ? 'bg-sky-500/[0.06]' : ''}`}>
+                    className={`border-b border-white/10 align-top ${fertig ? 'bg-akz/[0.06]' : ''}`}>
                     <td className="px-3 py-2 text-xs font-bold tabular-nums text-white/40" title={`${z.punkte} points`}>{z.rang}</td>
                     <td className="max-w-[230px] px-3 py-2">
-                      <a href={`/statistics?spieler=${z.id}`} target="_blank" rel="noreferrer" tabIndex={-1} className={`block truncate font-semibold hover:text-sky-300 ${z.name ? 'text-white' : 'font-mono text-xs text-white/55'}`}>{z.name || `${z.id.slice(0, 12)}… (name unknown)`}</a>
+                      <a href={`/statistics?spieler=${z.id}`} target="_blank" rel="noreferrer" tabIndex={-1} className={`block truncate font-semibold hover:text-akz ${z.name ? 'text-white' : 'font-mono text-xs text-white/55'}`}>{z.name || `${z.id.slice(0, 12)}… (name unknown)`}</a>
                       {z.namen.length > 0 && <p className="truncate text-[11px] text-white/40" title={z.namen.join(', ')}>{z.namen.join(' · ')}</p>}
                       {z.alterEintrag && <p className="text-[11px] text-violet-300" title="Stored only under the name, without account ID - the stats cannot see it. Saving puts it under the ID.">Old entry “{z.alterEintrag}”</p>}
-                      {z.anzeige && z.anzeige !== z.name && <p className="truncate text-[11px] text-sky-300/80" title="Maintained display name - shown everywhere instead of the raw name">shows as “{z.anzeige}“</p>}
+                      {z.anzeige && z.anzeige !== z.name && <p className="truncate text-[11px] text-akz/80" title="Maintained display name - shown everywhere instead of the raw name">shows as “{z.anzeige}“</p>}
                       {finder('anzeige')}
                     </td>
                     <td className="px-2 py-2 text-xs text-white/55">{z.region || '–'}<span className="block text-[10px] text-white/30">{jahr(z.letzte)}</span></td>
@@ -453,7 +453,7 @@ export default function FlaggenPflege() {
                         {!e.land.trim() && z.auto && (
                           <button type="button" tabIndex={-1} data-uebernehmen onClick={() => setEntwurf((x) => ({ ...x, [z.id]: { ...e, land: z.auto!.land } }))}
                             title={`Suggestion from ${QUELLE[z.auto.quelle] ?? z.auto.quelle} (automatic, not checked). Enter in the empty field accepts it too.`}
-                            className="flex shrink-0 items-center gap-1 rounded border border-dashed border-white/25 px-1.5 py-0.5 text-[11px] text-white/70 hover:border-sky-500 hover:text-sky-300">
+                            className="flex shrink-0 items-center gap-1 rounded border border-dashed border-white/25 px-1.5 py-0.5 text-[11px] text-white/70 hover:border-akz hover:text-akz">
                             <TeamFlagge groesse={12} laender={[z.auto.land]} />{z.auto.land} <T>accept</T>
                           </button>
                         )}
@@ -488,7 +488,7 @@ export default function FlaggenPflege() {
                         : s?.art === 'wartet' ? <span className="text-white/70">queued …</span>
                         : s?.art === 'fehler' ? <span className="text-rose-300" title={s.text}>✕ {s.text}</span>
                           : geaendert ? <span className="text-white/55">not saved</span>
-                            : s?.art === 'ok' ? <span className="font-semibold text-sky-300">✓ saved{fertig ? ' · done' : ''}</span>
+                            : s?.art === 'ok' ? <span className="font-semibold text-akz">✓ saved{fertig ? ' · done' : ''}</span>
                               : z.nurZweit ? <button type="button" tabIndex={-1} onClick={() => void speichern(z, true)} title="The values are on another account of the player or in the old entry - move them to the main account here" className="rounded border border-violet-500/50 px-1.5 py-0.5 text-[11px] text-violet-300 hover:bg-violet-500/10">move to main account</button>
                                 : <span className="text-white/30">{[z.fehlt.land && 'Flag', z.fehlt.x && 'X'].filter(Boolean).join(' + ')}  missing</span>}
                     </td>

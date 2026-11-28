@@ -136,7 +136,7 @@ export default function Spieler({ klassisch }: { klassisch: () => void }) {
   const gewaehlt = offen ? alle.find((x) => x.epicId === offen) ?? null : null;
   const lq = landSuche.trim().toLowerCase();
   const landTreffer = FLAGGEN.filter((c) => !lq || c.includes(lq) || landName(c).toLowerCase().includes(lq));
-  const chip = (an: boolean) => `rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${an ? 'border-sky-400 bg-sky-400 text-[#06080f]' : 'border-white/10 bg-white/[0.03] text-white/60 hover:text-white'}`;
+  const chip = (an: boolean) => `rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${an ? 'border-akz bg-akz text-[#06080f]' : 'border-white/10 bg-white/[0.03] text-white/60 hover:text-white'}`;
   const frueher = gewaehlt ? gewaehlt.namen.filter((n) => n !== gewaehlt.name && n !== gewaehlt.turniername) : [];
 
   return (
@@ -181,7 +181,7 @@ export default function Spieler({ klassisch }: { klassisch: () => void }) {
                     const auf = offen === s.epicId;
                     return (
                       <motion.button key={s.epicId} type="button" onClick={() => oeffnen(s)} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 28) * 0.012 }}
-                        className={`group rounded-2xl border bg-[#0a0d16]/85 p-2 text-left transition hover:-translate-y-0.5 ${auf ? 'border-sky-400 ring-2 ring-sky-400/40' : 'border-white/10 hover:border-white/25'}`}>
+                        className={`group rounded-2xl border bg-[#0a0d16]/85 p-2 text-left transition hover:-translate-y-0.5 ${auf ? 'border-akz ring-2 ring-akz/40' : 'border-white/10 hover:border-white/25'}`}>
                         <span className="relative block aspect-[3/4] overflow-hidden rounded-xl bg-black/30">
                           {s.foto ? <img src={s.foto} alt="" loading="lazy" className="h-full w-full object-cover object-top" />
                             : <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-white/[0.06] to-transparent p-2 text-center text-sm font-black uppercase leading-tight text-white/40">{s.name}</span>}
@@ -190,13 +190,13 @@ export default function Spieler({ klassisch }: { klassisch: () => void }) {
                           </span>
                         </span>
                         <span className="mt-2 block truncate text-[13px] font-bold text-white">{s.name}</span>
-                        <span className="block truncate text-[11px]">{s.x ? <span className="text-sky-300">@{s.x}</span> : <span className="text-white/35">no @ account</span>}</span>
+                        <span className="block truncate text-[11px]">{s.x ? <span className="text-akz">@{s.x}</span> : <span className="text-white/35">no @ account</span>}</span>
                       </motion.button>
                     );
                   })}
                 </div>
                 {gezeigt.length > menge && (
-                  <button type="button" onClick={() => setMenge((m) => m + SCHRITT)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.03] py-2.5 text-xs text-white/55 transition hover:border-sky-400/50 hover:text-sky-300">
+                  <button type="button" onClick={() => setMenge((m) => m + SCHRITT)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.03] py-2.5 text-xs text-white/55 transition hover:border-akz/50 hover:text-akz">
                     show more ({zahl(gezeigt.length - menge)})
                   </button>
                 )}
@@ -234,7 +234,7 @@ export default function Spieler({ klassisch }: { klassisch: () => void }) {
                 <label className="block"><span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-white/45">Display name</span>
                   <input value={eName} onChange={(e) => setEName(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') speichernUndWeiter(gewaehlt); }} placeholder={gewaehlt.turniername} spellCheck={false} className={`${feld} w-full`} /></label>
                 <label className="block"><span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-white/45">@ account</span>
-                  <span className="flex items-center rounded-xl border border-white/10 bg-black/40 focus-within:border-sky-400/60">
+                  <span className="flex items-center rounded-xl border border-white/10 bg-black/40 focus-within:border-akz/60">
                     <span className="pl-3 text-sm text-white/40">@</span>
                     <input value={eX} onChange={(e) => setEX(e.target.value.replace(/^@/, ''))} onKeyDown={(e) => { if (e.key === 'Enter') speichernUndWeiter(gewaehlt); }} placeholder="without @" spellCheck={false} className="min-w-0 flex-1 bg-transparent px-1.5 py-2 text-sm text-white outline-none" />
                   </span></label>
@@ -250,7 +250,7 @@ export default function Spieler({ klassisch }: { klassisch: () => void }) {
                   <div className="grid max-h-56 grid-cols-5 gap-1.5 overflow-y-auto pr-1">
                     {landTreffer.map((c) => (
                       <button key={c} type="button" onClick={() => setELand(c.toUpperCase())} title={`${c.toUpperCase()} · ${landName(c)}`}
-                        className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 transition ${eLand.toLowerCase() === c ? 'border-sky-400 bg-sky-400/15' : 'border-white/5 bg-black/20 hover:border-white/20'}`}>
+                        className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 transition ${eLand.toLowerCase() === c ? 'border-akz bg-akz/15' : 'border-white/5 bg-black/20 hover:border-white/20'}`}>
                         <Flagge land={c} /><span className="text-[10px] font-bold uppercase text-white/55">{c}</span>
                       </button>
                     ))}

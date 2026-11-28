@@ -115,12 +115,12 @@ export default function TiktokSeite() {
       <div className="">
         <SeitenKopf className="mb-6" marke={<T>Promotion</T>} titel={<T>TikTok-Videos</T>}
           text={<T>Every morning a short portrait video with the top five of the last cup is made by itself - English voice, music, subtitles. Download it here and copy the text; uploading is done by hand.</T>} />
-        <section className="mb-5 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-5">
+        <section className="mb-5 fl !rounded-2xl p-5">
           <h2 className="text-sm font-bold text-white"><T>What should the video show?</T></h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {([['letzter', 'The last cup'], ['top5', 'Top 5 players'], ['spieler', 'A player in review'], ['prognose', 'Prediction for the next day']] as const).map(([k, n]) => (
               <button key={k} type="button" onClick={() => setArt(k)} aria-pressed={art === k}
-                className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${art === k ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-white/15 text-white/70 hover:border-white/30'}`}>
+                className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${art === k ? 'border-akz bg-akz/15 text-akz' : 'border-white/15 text-white/70 hover:border-white/30'}`}>
                 {t(n)}
               </button>
             ))}
@@ -152,7 +152,7 @@ export default function TiktokSeite() {
               {art === 'spieler' && (
                 <label className="grid gap-1 text-xs text-white/55 sm:col-span-2"><T>Spieler</T>
                   <input value={spieler} onChange={(e) => setSpieler(e.target.value)} placeholder="Shxrk" spellCheck={false}
-                    className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-sky-500" />
+                    className="rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-akz" />
                 </label>
               )}
               {art !== 'prognose' && <label className="grid gap-1 text-xs text-white/55"><T>Jahr</T>
@@ -167,22 +167,22 @@ export default function TiktokSeite() {
           {art === 'prognose' && <p className="mt-3 text-xs text-white/55"><T>After day 1 of a multi-day final: who wins the tournament, projected from the real numbers of the day (points per game without the best game, wins, top-10 placements), with a reason per player. For Europe it is made by itself after the day 1 video.</T></p>}
           <div className="mt-4">
             <button type="button" disabled={baut} onClick={() => void neu()}
-              className="rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">
+              className="rounded-xl bg-akz px-5 py-2.5 text-sm font-semibold text-[#04050a] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">
               <T>Build video</T>
             </button>
           </div>
         </section>
         <StreamerClips />
         {baut && (
-          <div className="mb-4 flex items-start gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-3">
-            <span className="mt-1.5 h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-sky-400" aria-hidden />
-            <div className="text-sm text-sky-100">
+          <div className="mb-4 flex items-start gap-3 rounded-2xl border border-akz/30 bg-akz/10 px-4 py-3">
+            <span className="mt-1.5 h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-akz" aria-hidden />
+            <div className="text-sm text-akz">
               <p className="font-semibold">
                 {lauf && lauf.status === 'in_progress' && !wartet ? t('The video is being built') : t('The video is queued')}
-                {lauf && Date.parse(lauf.seit) <= jetzt && <span className="font-normal text-sky-300"> · {t('seit')} {seit} {t('min')}</span>}
+                {lauf && Date.parse(lauf.seit) <= jetzt && <span className="font-normal text-akz"> · {t('seit')} {seit} {t('min')}</span>}
               </p>
-              <p className="mt-0.5 text-xs text-sky-300/80"><T>It is built on the server - you can close, reload or leave the page. The video shows here once it is done.</T></p>
-              {lauf && <a href={lauf.adresse} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-sky-300 underline underline-offset-2 hover:text-sky-100"><T>View log</T></a>}
+              <p className="mt-0.5 text-xs text-akz/80"><T>It is built on the server - you can close, reload or leave the page. The video shows here once it is done.</T></p>
+              {lauf && <a href={lauf.adresse} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-akz underline underline-offset-2 hover:text-akz"><T>View log</T></a>}
             </div>
           </div>
         )}
@@ -192,28 +192,28 @@ export default function TiktokSeite() {
             <a href={lauf.adresse} target="_blank" rel="noreferrer" className="underline underline-offset-2 hover:text-rose-100"><T>View log</T></a>
           </p>
         )}
-        {stand && <p className="mb-4 rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-2 text-sm text-sky-300">{stand}</p>}
+        {stand && <p className="mb-4 rounded-lg border border-akz/30 bg-akz/10 px-3 py-2 text-sm text-akz">{stand}</p>}
         {fehler && <p className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{fehler}</p>}
         {liste === null && !fehler && <p className="py-10 text-center text-xs text-white/30"><T>Wird geladen …</T></p>}
         {liste && !liste.length && !fehler && !baut && (
-          <p className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl px-5 py-8 text-center text-sm text-white/55"><T>No video yet. The first run is tomorrow morning - or start it above.</T></p>
+          <p className="fl !rounded-2xl px-5 py-8 text-center text-sm text-white/55"><T>No video yet. The first run is tomorrow morning - or start it above.</T></p>
         )}
         <div className="grid gap-5 md:grid-cols-2">
           {(liste ?? []).map((v) => (
-            <article key={v.datei} className="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-xl">
+            <article key={v.datei} className="overflow-hidden fl">
               <video src={v.video} controls preload="metadata" playsInline className="mx-auto block aspect-[9/16] max-h-[540px] w-full bg-black object-contain" />
               <div className="p-5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-sky-400">{v.datum} · {v.region} · {Math.round(v.dauer)} s · {v.mb} MB</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-akz">{v.datum} · {v.region} · {Math.round(v.dauer)} s · {v.mb} MB</p>
                 <h2 className="mt-1 text-lg font-extrabold leading-tight text-white">{v.titel}</h2>
                 {!!v.marken?.length && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
-                    {v.marken.map((m) => <span key={m} className="rounded-md bg-sky-500/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-sky-300">{m}</span>)}
+                    {v.marken.map((m) => <span key={m} className="rounded-md bg-akz/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-akz">{m}</span>)}
                   </div>
                 )}
                 <textarea readOnly value={v.text} rows={8} className="mt-3 w-full resize-none rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-xs leading-relaxed text-white/70 outline-none" />
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <a href={v.video} download={v.datei} className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400"><T>Download video</T></a>
-                  <button type="button" onClick={() => void kopieren(v)} className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-sky-500 hover:text-sky-400">
+                  <a href={v.video} download={v.datei} className="rounded-lg bg-akz px-4 py-2 text-sm font-semibold text-[#04050a] transition hover:brightness-110"><T>Download video</T></a>
+                  <button type="button" onClick={() => void kopieren(v)} className="rounded-lg border border-white/15 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-akz hover:text-akz">
                     {kopiert === v.datei ? <T>Kopiert</T> : <T>Text kopieren</T>}
                   </button>
                   {v.seite && <a href={v.seite} target="_blank" rel="noreferrer" className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/55 transition hover:text-white/85"><T>Cup-Seite</T></a>}

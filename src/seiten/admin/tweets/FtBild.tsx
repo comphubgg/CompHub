@@ -48,7 +48,7 @@ export default function FtBild({ spieler, dateiname }: { spieler: FtBildSpieler[
   if (!spieler.length) {
     return <p className="px-4 pb-3 text-[11px] text-white/40"><T>Kein Bild – keiner dieser Spieler hat ein Foto.</T></p>;
   }
-  const knopf = 'rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40';
+  const knopf = 'rounded-lg border border-white/15 px-3 py-1.5 text-xs font-medium text-white/70 transition hover:border-akz hover:text-akz disabled:opacity-40';
   return (
     <div className="px-4 pb-3">
       <canvas ref={leinwand} width={1600} height={900}

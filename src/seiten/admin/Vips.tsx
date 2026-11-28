@@ -96,7 +96,7 @@ export default function Vips({ klassisch }: { klassisch: () => void }) {
                       className="group relative h-16 w-12 shrink-0 overflow-hidden rounded-lg border border-white/10 bg-black/30">
                       {v.bild ? <img src={v.bild} alt="" style={{ objectPosition: 'center 25%' }} className="h-full w-full object-cover" />
                         : <span className="grid h-full place-items-center text-xl font-bold text-white/25">{v.name.trim().charAt(0).toUpperCase()}</span>}
-                      <span className="absolute inset-0 hidden place-items-center bg-black/60 text-[9px] font-bold uppercase tracking-wider text-sky-300 group-hover:grid">Image</span>
+                      <span className="absolute inset-0 hidden place-items-center bg-black/60 text-[9px] font-bold uppercase tracking-wider text-akz group-hover:grid">Image</span>
                     </button>
                     <div className="flex min-w-[200px] flex-1 flex-col gap-1.5">
                       <input defaultValue={v.name} placeholder="Display name" className={`${feld} py-1.5 font-semibold`}
@@ -110,14 +110,14 @@ export default function Vips({ klassisch }: { klassisch: () => void }) {
                       </div>
                     </div>
                     <span className="flex shrink-0 flex-col">
-                      <button type="button" disabled={i === 0} title="Move forward" onClick={() => senden({ id: v.id, richtung: 'hoch' }, 'moved')} className="px-2 text-white/45 transition hover:text-sky-300 disabled:opacity-20">▲</button>
-                      <button type="button" disabled={i === vips.length - 1} title="Move back" onClick={() => senden({ id: v.id, richtung: 'runter' }, 'moved')} className="px-2 text-white/45 transition hover:text-sky-300 disabled:opacity-20">▼</button>
+                      <button type="button" disabled={i === 0} title="Move forward" onClick={() => senden({ id: v.id, richtung: 'hoch' }, 'moved')} className="px-2 text-white/45 transition hover:text-akz disabled:opacity-20">▲</button>
+                      <button type="button" disabled={i === vips.length - 1} title="Move back" onClick={() => senden({ id: v.id, richtung: 'runter' }, 'moved')} className="px-2 text-white/45 transition hover:text-akz disabled:opacity-20">▼</button>
                     </span>
                     <button type="button" onClick={() => senden({ id: v.id, aktiv: !v.aktiv }, v.aktiv ? 'hidden' : 'on the homepage')}
-                      className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${v.aktiv ? 'border-emerald-400/40 text-emerald-300 hover:border-emerald-300' : 'border-white/15 text-white/50 hover:border-sky-400 hover:text-sky-300'}`}>
+                      className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${v.aktiv ? 'border-emerald-400/40 text-emerald-300 hover:border-emerald-300' : 'border-white/15 text-white/50 hover:border-akz hover:text-akz'}`}>
                       {v.aktiv ? 'visible' : 'hidden'}
                     </button>
-                    {erstes && <a href={`${erstes.adresse}${v[erstes.schluessel]}`} target="_blank" rel="noreferrer" title="Open channel" className="shrink-0 text-sm text-white/40 transition hover:text-sky-300">↗</a>}
+                    {erstes && <a href={`${erstes.adresse}${v[erstes.schluessel]}`} target="_blank" rel="noreferrer" title="Open channel" className="shrink-0 text-sm text-white/40 transition hover:text-akz">↗</a>}
                     <button type="button" onClick={() => entfernen(v)} className="shrink-0 rounded-full border border-white/10 px-3 py-1.5 text-[11px] font-semibold text-white/45 transition hover:border-rose-400 hover:text-rose-300">remove</button>
                   </motion.li>
                 );
@@ -129,13 +129,13 @@ export default function Vips({ klassisch }: { klassisch: () => void }) {
 
         <div className="space-y-6">
           <Glas className="p-5">
-            <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-300">All VIP accesses</h2>
+            <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-akz">All VIP accesses</h2>
             <p className="mt-1 text-xs text-white/45">One click puts someone on the homepage. Add image and accounts on the left afterwards.</p>
             <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search names …" className={`${feld} my-3 w-full`} />
             <div className="flex max-h-[420px] flex-wrap gap-2 overflow-y-auto pr-1">
               {gefiltert.map((k) => (
                 <button key={`${k.art}-${k.konto}`} type="button" onClick={() => senden({ name: k.name, konto: k.konto }, 'put on the homepage')}
-                  className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white/80 transition hover:-translate-y-0.5 hover:border-sky-400/60 hover:text-sky-200">
+                  className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs text-white/80 transition hover:-translate-y-0.5 hover:border-akz/60 hover:text-akz">
                   {k.name}<span className="ml-2 text-[9px] uppercase tracking-wider text-white/35">{k.art === 'schluessel' ? 'Key' : 'Account'}</span>
                 </button>
               ))}

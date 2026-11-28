@@ -23,7 +23,7 @@ const LISTEN: Array<[string, string]> = [
 ];
 const REGIONEN = ['', 'EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
 
-const feld = 'w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-sky-500';
+const feld = 'w-full rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-akz';
 const beschriftung = 'mb-1 block text-[11px] font-semibold uppercase tracking-wider text-white/40';
 const tag = (ms: number) => new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -178,7 +178,7 @@ export default function PlakatSeite() {
         <nav className="mb-5 flex flex-wrap gap-1 self-start rounded-full border border-white/10 bg-white/[0.035] backdrop-blur-xl p-1">
           {ARTEN.map(([k, name]) => (
             <button key={k} type="button" onClick={() => setArt(k)}
-              className={`rounded-full px-4 py-2 text-sm font-bold transition ${art === k ? 'bg-sky-500 text-white shadow' : 'text-white/55 hover:text-white'}`}>
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${art === k ? 'bg-akz text-[#04050a] shadow' : 'text-white/55 hover:text-white'}`}>
               <T>{name}</T>
             </button>
           ))}
@@ -225,7 +225,7 @@ export default function PlakatSeite() {
                   {wahl.map((c) => (
                     <button key={c.id} type="button" onClick={() => cupWaehlen(c)}
                       className={`block w-full truncate rounded-lg border px-3 py-1.5 text-left text-xs transition ${cupId === c.id
-                        ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-white/10 text-white/70 hover:border-white/25'}`}>{c.titel}</button>
+                        ? 'border-akz bg-akz/10 text-akz' : 'border-white/10 text-white/70 hover:border-white/25'}`}>{c.titel}</button>
                   ))}
                 </div>
                 {cup && (
@@ -234,7 +234,7 @@ export default function PlakatSeite() {
                       {regionen.map((r) => (
                         <button key={r} type="button" onClick={() => { setRegion(r); setTage([]); setDatum(''); }}
                           className={`rounded-full border px-3 py-1 text-[11px] font-bold transition ${region === r
-                            ? 'border-sky-500 bg-sky-500 text-white' : 'border-white/15 text-white/55 hover:border-white/30'}`}>{r}</button>
+                            ? 'border-akz bg-akz text-[#04050a]' : 'border-white/15 text-white/55 hover:border-white/30'}`}>{r}</button>
                       ))}
                     </div>
                     <div>
@@ -242,8 +242,8 @@ export default function PlakatSeite() {
                       <div className="max-h-48 space-y-1 overflow-y-auto pr-1">
                         {fenster.map((f) => (
                           <label key={f.windowId} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-xs transition ${tage.includes(f.windowId)
-                            ? 'border-sky-500/60 bg-sky-500/10' : 'border-white/10 hover:border-white/25'}`}>
-                            <input type="checkbox" checked={tage.includes(f.windowId)} onChange={() => tagUmschalten(f)} className="accent-sky-500" />
+                            ? 'border-akz/60 bg-akz/10' : 'border-white/10 hover:border-white/25'}`}>
+                            <input type="checkbox" checked={tage.includes(f.windowId)} onChange={() => tagUmschalten(f)} className="accent-akz" />
                             <span className="min-w-0 flex-1 truncate">{f.windowId.replace(/^S\d+_/, '').replace(/_[A-Z]{2,4}$/, '')}</span>
                             <span className="text-[10px] text-white/40">{tag(f.begin)}{f.istFinale ? ' · F' : ''}</span>
                           </label>
@@ -287,11 +287,11 @@ export default function PlakatSeite() {
 
             <div className="flex flex-wrap items-center gap-2">
               <a href={bildUrl || undefined} download="comphub-plakat.png" aria-disabled={!bildUrl}
-                className={`rounded-full px-5 py-2 text-xs font-bold text-white transition ${bildUrl ? 'bg-sky-500 hover:bg-sky-400' : 'pointer-events-none bg-white/[0.12] opacity-50'}`}>
+                className={`rounded-full px-5 py-2 text-xs font-bold text-[#04050a] transition ${bildUrl ? 'bg-akz hover:brightness-110' : 'pointer-events-none bg-white/[0.12] opacity-50'}`}>
                 <T>Herunterladen</T>
               </a>
               <button type="button" onClick={() => void bildKopieren()} disabled={!bildUrl}
-                className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40">
+                className="rounded-full border border-white/15 px-4 py-2 text-xs font-semibold text-white/70 transition hover:border-akz hover:text-akz disabled:opacity-40">
                 <T>Bild kopieren</T>
               </button>
               {meldung && <span className="text-xs text-white/55">{meldung}</span>}
@@ -301,12 +301,12 @@ export default function PlakatSeite() {
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-[11px] font-semibold uppercase tracking-wider text-white/40"><T>Text for the post</T></h2>
                 <button type="button" onClick={() => void textKopieren()} disabled={!text}
-                  className="rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold text-white/70 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40">
+                  className="rounded-full border border-white/15 px-3 py-1 text-[11px] font-semibold text-white/70 transition hover:border-akz hover:text-akz disabled:opacity-40">
                   <T>Text kopieren</T>
                 </button>
               </div>
               <textarea value={text} onChange={(e) => setText(e.target.value)} rows={9} spellCheck={false}
-                className="w-full resize-y rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm leading-relaxed text-white/85 outline-none focus:border-sky-500" />
+                className="w-full resize-y rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm leading-relaxed text-white/85 outline-none focus:border-akz" />
               <p className="mt-2 text-[11px] text-white/40"><T>X accounts are in the text where maintained — check briefly before posting.</T></p>
             </div>
           </section>

@@ -99,21 +99,21 @@ export default function DienstePage() {
                     placeholder="Client ID"
                     className="rounded-lg border border-white/10 bg-black/40 px-3 py-2
                                font-mono text-xs text-white outline-none
-                               placeholder:text-white/30 focus:border-sky-500" />
+                               placeholder:text-white/30 focus:border-akz" />
                   <input value={werte.secret} spellCheck={false} type="password"
                     onChange={(e) => setEingabe((v) => ({
                       ...v, [d.dienst]: { ...werte, secret: e.target.value } }))}
                     placeholder="Client Secret"
                     className="rounded-lg border border-white/10 bg-black/40 px-3 py-2
                                font-mono text-xs text-white outline-none
-                               placeholder:text-white/30 focus:border-sky-500" />
+                               placeholder:text-white/30 focus:border-akz" />
                 </div>
 
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   <button onClick={() => void speichern(d.dienst)}
                     disabled={laeuft === d.dienst}
-                    className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-medium
-                               text-white transition hover:bg-sky-400
+                    className="rounded-lg bg-akz px-3 py-1.5 text-xs font-medium
+                               text-[#04050a] transition hover:brightness-110
                                disabled:opacity-40">
                     <T>Speichern</T>
                   </button>
@@ -133,7 +133,7 @@ export default function DienstePage() {
                 <p className="mt-3 text-[11px] leading-relaxed text-white/40">
                   <T>Get it at</T>{' '}
                   <a href={`https://${d.seite}`} target="_blank" rel="noreferrer"
-                    className="text-sky-400 underline">{d.seite}</a>
+                    className="text-akz underline">{d.seite}</a>
                     {' · '}<T>enter there as callback:</T>{' '}
                     <code className="rounded bg-black/40 px-1 py-0.5 text-white/70">
                       {d.rueckrufVoll}

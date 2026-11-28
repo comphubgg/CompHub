@@ -82,12 +82,12 @@ export default function StatKarte({ titel, untertitel, personen, werte, plaetze,
         {meldung && <span className="mr-auto text-[11px] text-emerald-400">{t(meldung)}</span>}
         {kannKopieren && (
           <button type="button" onClick={kopieren} disabled={!fertig}
-            className="rounded-lg bg-sky-500 px-3 py-1 text-xs font-medium text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-40">
+            className="rounded-lg bg-akz px-3 py-1 text-xs font-medium text-[#04050a] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40">
             <T>Bild kopieren</T>
           </button>
         )}
         <button type="button" onClick={speichern} disabled={!fertig}
-          className="rounded-lg border border-white/10 px-3 py-1 text-xs text-white/55 transition hover:border-sky-500/60 hover:text-sky-400 disabled:opacity-40">
+          className="rounded-lg border border-white/10 px-3 py-1 text-xs text-white/55 transition hover:border-akz/60 hover:text-akz disabled:opacity-40">
           <T>speichern</T>
         </button>
       </div>

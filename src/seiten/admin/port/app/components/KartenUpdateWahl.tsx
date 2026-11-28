@@ -78,10 +78,10 @@ export default function KartenUpdateWahl({ aktuell, waehle, vorgabe, speichert =
   };
 
   const chip = (an: boolean) => `rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition ${an
-    ? 'bg-sky-500 text-white' : 'border border-white/15 bg-white/[0.035] backdrop-blur-xl text-white/70 hover:border-sky-500/70 hover:text-sky-500'}`;
+    ? 'bg-akz text-[#04050a]' : 'border border-white/15 bg-white/[0.035] backdrop-blur-xl text-white/70 hover:border-akz/70 hover:text-akz'}`;
 
   return (
-    <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-3">
+    <div className="mt-3 fl !rounded-2xl p-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-[11px] font-bold uppercase tracking-wider text-white/40">{t('All updates')}{liste ? ` · ${liste.length}` : ''}</span>
         <button type="button" onClick={() => void neuSuchen()} disabled={suche.laeuft}
@@ -112,7 +112,7 @@ export default function KartenUpdateWahl({ aktuell, waehle, vorgabe, speichert =
             {angezeigt.map((u) => (
               <button key={u.img} type="button" disabled={speichert}
                 onClick={() => waehle(u.url, `${u.kapitel ? `Chapter ${u.kapitel} · ` : ''}${u.saison} · Update ${u.patch}`)}
-                className={`group overflow-hidden rounded-xl border text-left transition ${aktuell === u.url ? 'border-sky-500 ring-2 ring-sky-500/30' : 'border-white/10 hover:border-sky-500/60'}`}>
+                className={`group overflow-hidden rounded-xl border text-left transition ${aktuell === u.url ? 'border-akz ring-2 ring-akz/30' : 'border-white/10 hover:border-akz/60'}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={bildVon(u.url)} alt="" loading="lazy" className="aspect-square w-full bg-black/40 object-cover" />
                 <span className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] font-bold text-white/85">

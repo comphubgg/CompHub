@@ -61,7 +61,7 @@ function Karte({ karte, kreise, punkte, beschriftung }: {
   const insel = karte.bild ? gemessen : GANZES_BILD;
   const faktor = 1 / insel.seite;
   return (
-    <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-white/10 bg-sky-950">
+    <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-white/10 bg-akz/10">
       <div className="absolute inset-0 origin-top-left" style={{ transform: `scale(${faktor}) translate(${-insel.x * 100}%, ${-insel.y * 100}%)` }}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {karte.bild && <img src={karte.bild} alt="" crossOrigin="anonymous" onLoad={(e) => setInsel(inselAusschnitt(e.currentTarget))} className="absolute inset-0 h-full w-full object-cover" />}
@@ -241,16 +241,16 @@ export default function ReplaySeite() {
             <aside className="space-y-2">
               <input value={cupSuche} onChange={(e) => setCupSuche(e.target.value)} spellCheck={false}
                 placeholder={t('Search cup …')}
-                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-sky-500" />
+                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-akz" />
               <label className="flex cursor-pointer items-center gap-2 px-1 text-xs text-white/55">
-                <input type="checkbox" checked={nurWichtige} onChange={(e) => setNurWichtige(e.target.checked)} className="accent-sky-500" />
+                <input type="checkbox" checked={nurWichtige} onChange={(e) => setNurWichtige(e.target.checked)} className="accent-akz" />
                 <T>only Division, Performance, Finals and FNCS</T>
               </label>
               {sichtbareTage.length === 0 && (
                 <p className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-6 text-center text-xs text-white/40"><T>Nothing found.</T></p>
               )}
               {sichtbareTage.map((x) => (
-                <div key={x.windowId} className={`rounded-xl border ${x.windowId === tagWahl ? 'border-sky-500/70 bg-sky-500/10' : 'border-white/10 bg-white/[0.03]'}`}>
+                <div key={x.windowId} className={`rounded-xl border ${x.windowId === tagWahl ? 'border-akz/70 bg-akz/10' : 'border-white/10 bg-white/[0.03]'}`}>
                   <button onClick={() => { setTagWahl(x.windowId); setMatchWahl(null); setGamesOffen(true); }} className="w-full px-4 py-3 text-left">
                     <span className="block text-sm font-bold text-white">{x.titel}</span>
                     <span className="text-xs text-white/40">{x.region} · {x.matches.length} Games · {x.matches[0]?.beginn ? new Date(x.matches[0].beginn).toLocaleDateString() : ''}</span>
@@ -263,16 +263,16 @@ export default function ReplaySeite() {
                           <p className="truncate text-base font-bold text-white">{x.titel}</p>
                           <p className="text-xs text-white/40">{x.region} · {x.matches.length} Games</p>
                         </div>
-                        <button onClick={() => setGamesOffen(false)} className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-sm font-semibold text-white/70 transition hover:border-sky-500 hover:text-sky-300"><T>Schließen</T></button>
+                        <button onClick={() => setGamesOffen(false)} className="shrink-0 rounded-lg border border-white/15 px-3 py-1.5 text-sm font-semibold text-white/70 transition hover:border-akz hover:text-akz"><T>Schließen</T></button>
                       </div>
                     <div className="grid gap-1 overflow-y-auto p-3 sm:grid-cols-2 lg:grid-cols-3">
                       <button onClick={() => { setMatchWahl(null); setGamesOffen(false); }}
-                        className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${!matchWahl ? 'bg-sky-500/20 text-sky-300' : 'text-white/55 hover:bg-white/[0.06]'}`}>
+                        className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${!matchWahl ? 'bg-akz/20 text-akz' : 'text-white/55 hover:bg-white/[0.06]'}`}>
                         <T>Zones of all games</T>
                       </button>
                       {x.matches.map((m) => (
                         <button key={m.id} onClick={() => { setMatchWahl(m.id); setGamesOffen(false); }}
-                          className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${matchWahl === m.id ? 'bg-sky-500/20 text-sky-300' : 'text-white/70 hover:bg-white/[0.06]'}`}>
+                          className={`w-full rounded-lg px-3 py-2 text-left text-sm transition ${matchWahl === m.id ? 'bg-akz/20 text-akz' : 'text-white/70 hover:bg-white/[0.06]'}`}>
                           <b>Game {m.nr}</b>
                           <span className="block truncate text-xs text-white/40">🏆 {(m.sieger ?? []).map(ohneVorsatz).join(' + ') || '–'}</span>
                         </button>
@@ -282,7 +282,7 @@ export default function ReplaySeite() {
                     </div>
                   )}
                   {x.windowId === tagWahl && !gamesOffen && (
-                    <button onClick={() => setGamesOffen(true)} className="mx-2 mb-2 w-[calc(100%-1rem)] rounded-lg bg-sky-500/15 px-3 py-2 text-left text-sm font-semibold text-sky-300 transition hover:bg-sky-500/25">
+                    <button onClick={() => setGamesOffen(true)} className="mx-2 mb-2 w-[calc(100%-1rem)] rounded-lg bg-akz/15 px-3 py-2 text-left text-sm font-semibold text-akz transition hover:bg-akz/25">
                       {matchWahl ? `Game ${x.matches.find((m) => m.id === matchWahl)?.nr ?? ''}` : <T>Zones of all games</T>} · <T>Pick another</T>
                     </button>
                   )}
@@ -295,7 +295,7 @@ export default function ReplaySeite() {
               {tag?.eventId && !matchWahl && turnierTage.length > 0 && (
                 <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3">
                   <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-white/85">
-                    <input type="checkbox" checked={frei.includes(tag.eventId)} onChange={(e) => void freigabeSetzen(tag.eventId!, e.target.checked)} className="h-4 w-4 accent-sky-500" />
+                    <input type="checkbox" checked={frei.includes(tag.eventId)} onChange={(e) => void freigabeSetzen(tag.eventId!, e.target.checked)} className="h-4 w-4 accent-akz" />
                     <T>Share the zone overview of this cup with VIPs</T>
                   </label>
                   <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${frei.includes(tag.eventId) ? 'bg-emerald-500/15 text-emerald-300' : 'bg-white/[0.07] text-white/55'}`}>
@@ -311,7 +311,7 @@ export default function ReplaySeite() {
                     <span className="text-xs font-semibold uppercase tracking-[0.14em] text-white/40"><T>Zone with radius</T></span>
                     {stufen.map((r) => (
                       <button key={r} onClick={() => setPhase(r)}
-                        className={`rounded-lg border px-3 py-1 text-xs font-semibold transition ${phase === r ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-white/10 text-white/55 hover:text-white/85'}`}>
+                        className={`rounded-lg border px-3 py-1 text-xs font-semibold transition ${phase === r ? 'border-akz bg-akz/15 text-akz' : 'border-white/10 text-white/55 hover:text-white/85'}`}>
                         {(r / 100).toLocaleString()} m
                       </button>
                     ))}
@@ -327,13 +327,13 @@ export default function ReplaySeite() {
                     <div className="space-y-2">
                       {tag.matches.map((m, i) => (
                         <button key={m.id} onClick={() => setMatchWahl(m.id)}
-                          className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left transition hover:border-sky-500/60">
+                          className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left transition hover:border-akz/60">
                           <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: FARBEN[i % FARBEN.length] }} />
                           <span className="min-w-0 flex-1">
                             <b className="text-sm">Game {m.nr}</b>
                             <span className="block truncate text-xs text-white/40">🏆 {(m.sieger ?? []).map(ohneVorsatz).join(' + ') || '–'}</span>
                           </span>
-                          {!tagMatches[m.id] && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/15 border-t-sky-400" />}
+                          {!tagMatches[m.id] && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/15 border-t-akz" />}
                         </button>
                       ))}
                     </div>
@@ -349,7 +349,7 @@ export default function ReplaySeite() {
                     <h2 className="text-xl font-black">Game {tag?.matches.find((m) => m.id === matchWahl)?.nr}</h2>
                     <span className="text-sm text-white/55">{tag?.titel}</span>
                     <label className="ml-auto flex items-center gap-2 text-sm text-white/55">
-                      <input type="checkbox" checked={mitKnocks} onChange={(e) => setMitKnocks(e.target.checked)} className="accent-sky-500" />
+                      <input type="checkbox" checked={mitKnocks} onChange={(e) => setMitKnocks(e.target.checked)} className="accent-akz" />
                       <T>Show knocks</T>
                     </label>
                   </div>

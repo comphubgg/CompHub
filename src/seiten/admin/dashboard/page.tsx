@@ -65,8 +65,8 @@ const VIP_ZIELE: Ziel[] = [
 ];
 
 function Abschnitt({ ton, titel, marke, text }: { ton: 'vip' | 'hier' | 'alle'; titel: string; marke: string; text: string }) {
-  const farbe = ton === 'vip' ? 'text-amber-300' : ton === 'hier' ? 'text-white' : 'text-sky-300';
-  const pille = ton === 'vip' ? 'border-amber-400/40 bg-amber-400/10 text-amber-300' : ton === 'hier' ? 'border-white/20 bg-white/[0.06] text-white/70' : 'border-sky-400/30 bg-sky-400/10 text-sky-300';
+  const farbe = ton === 'vip' ? 'text-amber-300' : ton === 'hier' ? 'text-white' : 'text-akz';
+  const pille = ton === 'vip' ? 'border-amber-400/40 bg-amber-400/10 text-amber-300' : ton === 'hier' ? 'border-white/20 bg-white/[0.06] text-white/70' : 'border-akz/30 bg-akz/10 text-akz';
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
       <h2 className={`text-sm font-extrabold uppercase tracking-[0.18em] ${farbe}`}>{titel}</h2>
@@ -107,13 +107,13 @@ function NurHier() {
       <div className="mt-4 grid gap-2.5 lg:grid-cols-3">
         {NUR_HIER.map((z, i) => (
           <motion.div key={z.zu} {...rein(i)}>
-            <Link to={z.zu} className="group flex h-full items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3.5 backdrop-blur-xl transition hover:border-sky-400/50 hover:bg-white/[0.06]">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.07] text-white/80 transition group-hover:bg-sky-400/15 group-hover:text-sky-300"><Zeichen name={z.symbol} /></span>
+            <Link to={z.zu} className="group flex h-full items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.035] px-4 py-3.5 backdrop-blur-xl transition hover:border-akz/50 hover:bg-white/[0.06]">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/[0.07] text-white/80 transition group-hover:bg-akz/15 group-hover:text-akz"><Zeichen name={z.symbol} /></span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] font-bold text-white">{z.titel}</span>
                 <span className="mt-0.5 block text-xs leading-snug text-white/50">{z.text}</span>
               </span>
-              <span aria-hidden className="text-white/30 transition group-hover:translate-x-0.5 group-hover:text-sky-300">→</span>
+              <span aria-hidden className="text-white/30 transition group-hover:translate-x-0.5 group-hover:text-akz">→</span>
             </Link>
           </motion.div>
         ))}
@@ -129,8 +129,8 @@ function FuerAlle() {
       <div className="mt-4 flex flex-wrap gap-2">
         {FUER_ALLE.map((z, i) => (
           <motion.div key={z.zu} {...rein(i)}>
-            <Link to={z.zu} title={z.text} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] py-2 pl-3 pr-4 text-sm font-semibold text-white/80 backdrop-blur-xl transition hover:border-sky-400/50 hover:text-sky-200">
-              <span className="text-sky-400"><Zeichen name={z.symbol} groesse={16} /></span>{z.titel}
+            <Link to={z.zu} title={z.text} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.035] py-2 pl-3 pr-4 text-sm font-semibold text-white/80 backdrop-blur-xl transition hover:border-akz/50 hover:text-akz">
+              <span className="text-akz"><Zeichen name={z.symbol} groesse={16} /></span>{z.titel}
             </Link>
           </motion.div>
         ))}
@@ -160,8 +160,8 @@ export function Schnellzugriff({ klassisch }: { klassisch?: () => void }) {
           const vip = VIP_ZIELE.includes(z);
           return (
             <motion.div key={z.zu + z.titel} {...rein(i)} whileHover={{ y: -3 }}>
-              <Link to={z.zu} title={z.text} className="group flex h-full flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-4 text-center backdrop-blur-xl transition hover:border-sky-400/50 hover:bg-white/[0.06]">
-                <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${vip ? 'bg-amber-400 text-[#06080f]' : 'bg-white/[0.07] text-white/80 group-hover:text-sky-300'}`}><Zeichen name={z.symbol} groesse={19} /></span>
+              <Link to={z.zu} title={z.text} className="group flex h-full flex-col items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.035] px-3 py-4 text-center backdrop-blur-xl transition hover:border-akz/50 hover:bg-white/[0.06]">
+                <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${vip ? 'bg-amber-400 text-[#06080f]' : 'bg-white/[0.07] text-white/80 group-hover:text-akz'}`}><Zeichen name={z.symbol} groesse={19} /></span>
                 <span className="text-[13px] font-semibold leading-tight text-white">{z.titel}</span>
               </Link>
             </motion.div>
@@ -207,15 +207,15 @@ export function SiteDashboard({ klassisch }: { klassisch?: () => void }) {
     <>
       <WerkzeugKopf ueber="Site dashboard" titel="Dashboard" text="The classic dashboard of thecomphub.com: only-here tools, your archive and your Twitch chat." klassisch={klassisch} />
       <Glas className="relative mb-6 overflow-hidden px-6 py-6">
-        <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-500/20 blur-3xl" />
+        <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-akz/20 blur-3xl" />
         <div className="relative flex flex-wrap items-center gap-4">
           <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/10 bg-black/40 text-2xl font-extrabold uppercase text-white/70">
             {profil?.avatarUrl ? <img src={profil.avatarUrl} alt="" className="h-full w-full object-cover" /> : (profil?.displayName || '?').trim().charAt(0)}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400">Dashboard</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-akz">Dashboard</p>
             <h2 className="truncate text-3xl font-extrabold tracking-tight text-white">{profil ? (profil.displayName || 'No name') : 'Loading …'}</h2>
-            <span className="mt-1.5 inline-block rounded-full border border-sky-400/30 bg-sky-400/10 px-2.5 py-0.5 text-xs font-semibold text-sky-300">Admin{status && status !== 'Admin' ? ` · ${status}` : ''}</span>
+            <span className="mt-1.5 inline-block rounded-full border border-akz/30 bg-akz/10 px-2.5 py-0.5 text-xs font-semibold text-akz">Admin{status && status !== 'Admin' ? ` · ${status}` : ''}</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {wege.map(([zu, t, x]) => <Link key={zu} to={zu} title={x} className={knopfLeise}>{t}</Link>)}
@@ -234,14 +234,14 @@ export function SiteDashboard({ klassisch }: { klassisch?: () => void }) {
             <h2 className="truncate text-sm font-bold text-white">{twitch ? `Chat · ${twitch}` : 'Twitch chat'}</h2>
             {twitch && (
               <button type="button" onClick={() => void chatUmschalten()} aria-pressed={profil?.twitchChatEnabled}
-                className={`rounded-full px-3 py-1 text-xs font-bold transition ${profil?.twitchChatEnabled ? 'bg-sky-400/15 text-sky-300' : 'border border-white/10 text-white/45'}`}>
+                className={`rounded-full px-3 py-1 text-xs font-bold transition ${profil?.twitchChatEnabled ? 'bg-akz/15 text-akz' : 'border border-white/10 text-white/45'}`}>
                 {profil?.twitchChatEnabled ? 'On' : 'Off'}
               </button>
             )}
           </header>
           {chatFehler && <p className="px-4 pt-2 text-xs text-amber-200">{chatFehler}</p>}
           {!profil ? <p className="p-8 text-center text-sm text-white/45">Loading chat …</p>
-            : !twitch ? <p className="p-8 text-center text-sm text-white/45">Add your Twitch channel under <Link to="/account" className="text-sky-300">Account</Link>, then the chat shows up here.</p>
+            : !twitch ? <p className="p-8 text-center text-sm text-white/45">Add your Twitch channel under <Link to="/account" className="text-akz">Account</Link>, then the chat shows up here.</p>
               : !profil.twitchChatEnabled ? <p className="p-8 text-center text-sm text-white/45">Chat is off.</p>
                 : <iframe title={`Twitch chat ${twitch}`} src={`https://www.twitch.tv/embed/${encodeURIComponent(twitch)}/chat?parent=${window.location.hostname}&darkpopout`} className="h-[320px] w-full bg-black sm:h-[560px] xl:h-[calc(100vh-260px)]" />}
         </Glas>

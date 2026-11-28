@@ -51,7 +51,7 @@ async function holeJson(url: string, init?: RequestInit): Promise<Antwort> {
 }
 const neueCid = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`);
 interface Unterwegs { cid: string; id: string; body: Record<string, unknown>; fertig: string; gesendet: boolean; versuche: number }
-const feld = 'w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-xs text-white outline-none focus:border-sky-500';
+const feld = 'w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-xs text-white outline-none focus:border-akz';
 const ausCredit = (c: Credit | null): CreditEntwurf => ({
   quelle: c?.quelle ?? '', fotograf: c?.fotograf ?? '', handle: c?.handle ?? '', link: c?.link ?? '', lizenz: c?.lizenz ?? '', bestaetigt: Boolean(c?.bestaetigt),
 });
@@ -122,7 +122,7 @@ function NamensFeld({ foto, anzeige, onWahl }: { foto: Foto; anzeige: string; on
           {treffer.map((t, i) => (
             <li key={t.epicId} role="option" aria-selected={i === aktiv}>
               <button type="button" onMouseDown={(e) => e.preventDefault()} onClick={() => waehle(t)}
-                className={`flex w-full items-baseline justify-between gap-2 px-2 py-1 text-left text-xs ${i === aktiv ? 'bg-sky-500/15 text-white' : 'text-white/70 hover:bg-white/[0.08]'}`}>
+                className={`flex w-full items-baseline justify-between gap-2 px-2 py-1 text-left text-xs ${i === aktiv ? 'bg-akz/15 text-white' : 'text-white/70 hover:bg-white/[0.08]'}`}>
                 <span className="truncate">{t.anzeige || t.name}</span>
                 <span className="shrink-0 text-[10px] text-white/40">{t.ausIndex ? `${t.region ?? ''} · ${t.events ?? 0} Events` : 'Profile'} · {t.epicId.slice(0, 6)}</span>
               </button>
@@ -293,7 +293,7 @@ export default function FotosPoolSeite() {
     return <NurAdmins />;
   }
 
-  const chip = (an: boolean) => `rounded-full px-3 py-1 text-xs font-bold transition ${an ? 'bg-sky-500 text-white' : 'border border-white/10 bg-white/[0.035] backdrop-blur-xl text-white/55 hover:text-white'}`;
+  const chip = (an: boolean) => `rounded-full px-3 py-1 text-xs font-bold transition ${an ? 'bg-akz text-[#04050a]' : 'border border-white/10 bg-white/[0.035] backdrop-blur-xl text-white/55 hover:text-white'}`;
   const FILTER: Array<[Filter, string]> = [['frei', 'Without name'], ['zugeordnet', 'Assigned'], ['alle', 'All']];
 
   return (
@@ -314,13 +314,13 @@ export default function FotosPoolSeite() {
           {FILTER.map(([f, titel]) => (
             <button key={f} type="button" className={chip(filter === f)} onClick={() => { setFilter(f); setSeite(0); }}><T>{titel}</T> <span className="opacity-70">{zahlen[f]}</span></button>
           ))}
-          <label className="cursor-pointer rounded-full border border-sky-500/50 px-3 py-1 text-xs font-semibold text-sky-300 hover:bg-sky-500/10">
+          <label className="cursor-pointer rounded-full border border-akz/50 px-3 py-1 text-xs font-semibold text-akz hover:bg-akz/10">
             <T>Add cropped photos …</T>
             <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { const l = e.target.files; if (l?.length) dateienHochladen(l); e.target.value = ''; }} />
           </label>
           <Link href="/admin/fotos-credits" className="text-xs text-white/40 underline-offset-2 hover:text-white/70 hover:underline"><T>Photos & photographers</T></Link>
           <input value={suche} onChange={(e) => { setSuche(e.target.value); setSeite(0); }} placeholder="Player, file, photographer …"
-            className="ml-auto w-56 rounded-lg border border-white/10 bg-white/[0.035] backdrop-blur-xl px-3 py-1.5 text-sm outline-none focus:border-sky-500" />
+            className="ml-auto w-56 fl !rounded-lg px-3 py-1.5 text-sm outline-none focus:border-akz" />
         </div>
         {hochladen && <p className="mb-3 text-xs text-white/55">{hochladen}</p>}
 
@@ -382,7 +382,7 @@ export default function FotosPoolSeite() {
                           onChange={(e) => setEntwurf({ ...entwurf, bestaetigt: e.target.checked })} />
                         <T>bestätigt</T>
                       </label>
-                      <button type="button" className="rounded bg-sky-500 px-2 py-0.5 font-bold text-white" onClick={() => creditSpeichern(f)}><T>Speichern</T></button>
+                      <button type="button" className="rounded bg-akz px-2 py-0.5 font-bold text-[#04050a]" onClick={() => creditSpeichern(f)}><T>Speichern</T></button>
                     </div>
                   </div>
                 )}

@@ -628,7 +628,7 @@ export function Karte({ f, bild, rotAb = 2, verteilen = false }: {
                     if (e.key === 'Enter' && treffer[0]) springeZu(treffer[0].spot);
                   }}
                   placeholder={t('Spieler suchen …')}
-                  className="min-w-0 flex-1 rounded-md border border-white/20 bg-black/75 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-white/55 focus:border-sky-400" />
+                  className="min-w-0 flex-1 rounded-md border border-white/20 bg-black/75 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-white/55 focus:border-akz" />
                 <button type="button" aria-label={t('Schließen')} onClick={() => setPopup(false)}
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-black/75 text-white/70 transition hover:text-white">
                   <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /></svg>
@@ -639,7 +639,7 @@ export function Karte({ f, bild, rotAb = 2, verteilen = false }: {
                   {treffer.length ? treffer.slice(0, 8).map((x) => (
                     <li key={`${x.spot}-${x.name}`}>
                       <button type="button" onClick={() => springeZu(x.spot)}
-                        className="block w-full truncate px-2.5 py-1.5 text-left font-semibold uppercase tracking-wide transition hover:bg-sky-500/30">
+                        className="block w-full truncate px-2.5 py-1.5 text-left font-semibold uppercase tracking-wide transition hover:bg-akz/30">
                         {kartenName(x.name)}
                       </button>
                     </li>

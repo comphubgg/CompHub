@@ -33,7 +33,7 @@ export default function StreamerClips() {
   const kopiere = async (text: string) => { try { await navigator.clipboard.writeText(text); setKopiert(text); } catch { /* ohne Zwischenablage */ } };
 
   return (
-    <section className="mb-6 rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-5">
+    <section className="mb-6 fl p-5">
       <h2 className="text-sm font-bold text-white"><T>Streamer-Clips</T></h2>
       <p className="mt-1 max-w-2xl text-xs text-white/55">
         <T>Every morning CompHub cuts the three best Twitch clips of the last 24 hours of every connected streamer to portrait (facecam on top, game below, title). They show up below with the videos.</T>
@@ -42,19 +42,19 @@ export default function StreamerClips() {
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <label className="grid gap-1 text-xs text-white/55"><T>Streamer</T>
           <input value={fuer} onChange={(e) => setFuer(e.target.value)} spellCheck={false}
-            className="w-48 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-sky-500" />
+            className="w-48 rounded-lg border border-white/15 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-akz" />
         </label>
         <button type="button" onClick={() => void schicke({ aktion: 'link', fuer })}
-          className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400">
+          className="rounded-lg bg-akz px-4 py-2 text-sm font-semibold text-[#04050a] transition hover:brightness-110">
           <T>Create a link for the streamer</T>
         </button>
       </div>
       {neu && (
-        <div className="mt-3 rounded-xl border border-sky-500/30 bg-sky-500/10 p-3 text-xs text-sky-100">
+        <div className="mt-3 rounded-xl border border-akz/30 bg-akz/10 p-3 text-xs text-akz">
           <p><T>Send this link to the streamer. They sign in with Twitch and agree - then they are connected (valid 14 days).</T></p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <code className="break-all rounded bg-black/40 px-2 py-1 text-[11px] text-white/85">{neu}</code>
-            <button type="button" onClick={() => void kopiere(neu)} className="rounded-md border border-sky-500/50 px-2.5 py-1 font-semibold text-sky-200 hover:bg-sky-500/20">
+            <button type="button" onClick={() => void kopiere(neu)} className="rounded-md border border-akz/50 px-2.5 py-1 font-semibold text-akz hover:bg-akz/20">
               {kopiert === neu ? <T>Kopiert</T> : <T>Kopieren</T>}
             </button>
           </div>
@@ -72,7 +72,7 @@ export default function StreamerClips() {
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {ECKEN.map(([k, n]) => (
                 <button key={k} type="button" onClick={() => void schicke({ aktion: 'facecam', login: s.login, ecke: k })} aria-pressed={s.facecam === k}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${s.facecam === k ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-white/15 text-white/70 hover:border-white/30'}`}>
+                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${s.facecam === k ? 'border-akz bg-akz/15 text-akz' : 'border-white/15 text-white/70 hover:border-white/30'}`}>
                   {t(n)}
                 </button>
               ))}

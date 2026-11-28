@@ -119,7 +119,7 @@ function ProSuche({ aktuell, waehle }: {
 
   const feld = 'w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 '
     + 'text-sm text-white outline-none placeholder:text-white/30 '
-    + 'focus:border-sky-500';
+    + 'focus:border-akz';
 
   /*
    * Zu einer hinterlegten Id den Namen holen.
@@ -159,7 +159,7 @@ function ProSuche({ aktuell, waehle }: {
         </span>
         <button onClick={() => setAendern(true)}
           className="ml-auto text-[11px] text-white/40 transition
-                     hover:text-sky-400">
+                     hover:text-akz">
           <T>ändern</T>
         </button>
       </div>
@@ -236,7 +236,7 @@ function AblaufMarke({ bis }: { bis: number | null }) {
   return (
     <span title={new Date(bis).toLocaleString('de-DE')}
       className={`rounded border px-1.5 py-0.5 text-[10px] ${bald
-        ? 'border-amber-600/60 bg-amber-950/30 text-amber-300' : 'border-sky-500/30 bg-sky-500/10 text-sky-300/90'}`}>
+        ? 'border-amber-600/60 bg-amber-950/30 text-amber-300' : 'border-akz/30 bg-akz/10 text-akz/90'}`}>
       {t(tage === 1 ? 'expires in 1 day' : 'expires in {n} days').replace('{n}', String(tage))} · {datum}
     </span>
   );
@@ -539,7 +539,7 @@ ${n}`)) return;
 
   const feld = 'w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 '
     + 'text-sm text-white outline-none placeholder:text-white/30 '
-    + 'focus:border-sky-500';
+    + 'focus:border-akz';
 
   return (
     <section className="mb-6 rounded-xl border border-white/10 bg-white/[0.03] p-4">
@@ -567,7 +567,7 @@ ${n}`)) return;
               <button key={w} onClick={() => { setArt(w); setFehler(''); }}
                 className={`flex-1 rounded-md px-3 py-1.5 text-[11px]
                             font-semibold transition ${art === w
-                  ? 'bg-sky-500 text-white'
+                  ? 'bg-akz text-[#04050a]'
                   : 'text-white/55 hover:text-white/85'}`}>
                 {w === 'vip' ? <T>VIP</T> : <T>VIP-Manager</T>}
               </button>
@@ -597,8 +597,8 @@ ${n}`)) return;
                 className={`${feld} flex-1`} />
             )}
             <button onClick={() => anlegen()} disabled={!bereit}
-              className="rounded-lg bg-sky-500 px-5 text-sm font-semibold
-                         text-white transition hover:bg-sky-400
+              className="rounded-lg bg-akz px-5 text-sm font-semibold
+                         text-[#04050a] transition hover:brightness-110
                          disabled:cursor-not-allowed disabled:opacity-40">
               <T>anlegen</T>
             </button>
@@ -622,7 +622,7 @@ ${n}`)) return;
             <p className="mt-1.5 text-[11px] text-white/40">
               <T>Der Zugang heißt dann</T>{' '}
               <code className="rounded bg-black/40 px-1.5 py-0.5 font-mono
-                               text-sky-300">{managerName}</code>
+                               text-akz">{managerName}</code>
             </p>
           )}
 
@@ -670,8 +670,8 @@ ${n}`)) return;
               {[7, 30, 90, 0].map((tage) => (
                 <button key={tage} type="button" onClick={() => setLaufzeit(tage)}
                   className={`rounded-md border px-3 py-1.5 text-[11px] font-semibold transition ${laufzeit === tage
-                    ? 'border-sky-500 bg-sky-500 text-white'
-                    : 'border-white/10 text-white/55 hover:border-sky-500 hover:text-white/85'}`}>
+                    ? 'border-akz bg-akz text-[#04050a]'
+                    : 'border-white/10 text-white/55 hover:border-akz hover:text-white/85'}`}>
                   {tage ? t(`${tage} days`) : t('unbegrenzt')}
                 </button>
               ))}
@@ -753,7 +753,7 @@ ${n}`)) return;
                   <AblaufMarke bis={z.fristLoescht ? z.vipBis ?? null : null} />
                   <select aria-label={t('Ablauf setzen')} value=""
                     onChange={(e) => { if (e.target.value !== '') void fristSetzen(z.name, Number(e.target.value)); }}
-                    className="rounded border border-white/10 bg-black/40 px-1.5 py-0.5 text-[10px] text-white/40 outline-none hover:border-sky-500">
+                    className="rounded border border-white/10 bg-black/40 px-1.5 py-0.5 text-[10px] text-white/40 outline-none hover:border-akz">
                     <option value="">{t('Ablauf setzen …')}</option>
                     <option value="7">{t('7 Tage ab jetzt')}</option>
                     <option value="30">{t('30 Tage ab jetzt')}</option>
@@ -768,21 +768,21 @@ ${n}`)) return;
                     * betreut und welcher eigene hat.
                     */}
                   {z.verwaltet && (
-                    <span className="rounded border border-sky-500/30
-                                     bg-sky-500/10 px-1.5 py-0.5 text-[10px]
-                                     text-sky-300/90">
+                    <span className="rounded border border-akz/30
+                                     bg-akz/10 px-1.5 py-0.5 text-[10px]
+                                     text-akz/90">
                       <T>Manager für</T> {z.verwaltet}
                     </span>
                   )}
                   <button
                     onClick={() => setZeigt(zeigt === z.name ? null : z.name)}
                     className="ml-auto text-[11px] text-white/40 transition
-                               hover:text-sky-400">
+                               hover:text-akz">
                     {zeigt === z.name ? <T>verbergen</T> : <T>Schlüssel zeigen</T>}
                   </button>
                   <button onClick={() => umschalten(z.name, !z.aktiv)}
                     className="text-[11px] text-white/40 transition
-                               hover:text-sky-400">
+                               hover:text-akz">
                     {z.aktiv ? <T>stilllegen</T> : <T>wieder freigeben</T>}
                   </button>
                   <button onClick={() => erneuern(z.name)}
@@ -798,7 +798,7 @@ ${n}`)) return;
                   {z.aktiv && (
                     <button onClick={() => wechseln(z.name)}
                       className="text-[11px] text-white/40 transition
-                                 hover:text-sky-400">
+                                 hover:text-akz">
                       <T>hineinsehen</T>
                     </button>
                   )}
@@ -844,7 +844,7 @@ ${n}`)) return;
                 disabled={aufbau?.laeuft}
                 className="rounded-lg border border-white/10 px-3 py-1.5
                            text-[11px] text-white/70 transition
-                           hover:border-sky-500 hover:text-sky-300
+                           hover:border-akz hover:text-akz
                            disabled:cursor-not-allowed disabled:opacity-40">
                 {aufbau?.laeuft
                   ? <T>wird eingerichtet …</T> : <T>Server einrichten</T>}
@@ -853,7 +853,7 @@ ${n}`)) return;
                 disabled={aufbau?.laeuft}
                 className="rounded-lg border border-white/10 px-3 py-1.5
                            text-[11px] text-white/70 transition
-                           hover:border-sky-500 hover:text-sky-300
+                           hover:border-akz hover:text-akz
                            disabled:cursor-not-allowed disabled:opacity-40">
                 <T>Schlüssel neu schreiben</T>
               </button>
@@ -938,7 +938,7 @@ function OrgUebersicht({ konten }: { konten: Konto[] }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         {o.logo ? <img src={o.logo} alt="" className="h-full w-full object-contain p-0.5" /> : <span className="text-xs font-bold text-white/30">{o.name.slice(0, 1)}</span>}
       </span>
-      <a href={`/org?org=${encodeURIComponent(o.id)}`} className="text-sm font-semibold text-white transition hover:text-sky-400">{o.name}</a>
+      <a href={`/org?org=${encodeURIComponent(o.id)}`} className="text-sm font-semibold text-white transition hover:text-akz">{o.name}</a>
       <span className="text-[11px] text-white/40">{o.spieler.length} <T>Spieler</T></span>
       <span className="ml-auto text-xs text-white/55">
         {verwalter.length ? verwalter.map((k) => k.name).join(', ') : <span className="text-white/30"><T>kein Konto zugeordnet</T></span>}
@@ -950,7 +950,7 @@ function OrgUebersicht({ konten }: { konten: Konto[] }) {
       <header className="flex flex-wrap items-center gap-3 px-4 py-3">
         <h2 className="text-sm font-extrabold uppercase tracking-[0.16em] text-emerald-300"><T>Organisationen</T></h2>
         <span className="text-[11px] text-white/40">{mitKonto.length} <T>mit Konto</T> · {ohne.length} <T>ohne Konto</T></span>
-        <a href="/admin/orgs" className="ml-auto text-xs font-semibold text-sky-400 transition hover:text-sky-300"><T>Organisationen anlegen und pflegen</T> →</a>
+        <a href="/admin/orgs" className="ml-auto text-xs font-semibold text-akz transition hover:text-akz"><T>Organisationen anlegen und pflegen</T> →</a>
       </header>
       {mitKonto.length === 0 && <p className="border-t border-white/10 px-4 py-4 text-xs text-white/40"><T>Noch keine Organisation hat ein Konto. Öffne das Konto der Person und wähle im Feld „Esports-Team“ die Organisation.</T></p>}
       {mitKonto.map((o) => zeile(o, konten.filter((k) => k.org === o.id)))}
@@ -1225,7 +1225,7 @@ ${k.name}`)) return;
 
   const feld = 'w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 '
     + 'text-sm text-white outline-none placeholder:text-white/30 '
-    + 'focus:border-sky-500';
+    + 'focus:border-akz';
 
   return (
     <main className="text-white">
@@ -1244,10 +1244,10 @@ ${k.name}`)) return;
           {FILTER.map((x) => (
             <button key={x.wert} type="button" role="tab" aria-selected={filter === x.wert} onClick={() => waehleFilter(x.wert)}
               className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${filter === x.wert
-                ? 'border-sky-500 bg-sky-500/15 text-sky-400'
-                : 'border-white/10 bg-white/[0.035] backdrop-blur-xl text-white/55 hover:border-sky-500/60 hover:text-white/85'}`}>
+                ? 'border-akz bg-akz/15 text-akz'
+                : 'border-white/10 bg-white/[0.035] backdrop-blur-xl text-white/55 hover:border-akz/60 hover:text-white/85'}`}>
               <T>{x.titel}</T>
-              <span className={`ml-1.5 tabular-nums ${filter === x.wert ? 'text-sky-300' : 'text-white/30'}`}>{zahlen[x.wert]}</span>
+              <span className={`ml-1.5 tabular-nums ${filter === x.wert ? 'text-akz' : 'text-white/30'}`}>{zahlen[x.wert]}</span>
             </button>
           ))}
         </div>
@@ -1274,11 +1274,11 @@ ${k.name}`)) return;
         <div className="space-y-3">
           {gefiltert.map((k) => (
             <div key={k.id}
-              className="rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-4">
+              className="fl !rounded-2xl p-4">
               <div className={`flex flex-wrap items-center gap-3 ${istOffen(k.id) ? 'mb-3' : ''}`}>
                 <button type="button" onClick={() => kartenUmschalten(k.id)} aria-expanded={istOffen(k.id)}
                   title={istOffen(k.id) ? t('Zuklappen') : t('Aufklappen')}
-                  className="grid h-7 w-7 place-items-center rounded-full border border-white/15 text-xs text-white/55 transition hover:border-sky-500 hover:text-sky-400">
+                  className="grid h-7 w-7 place-items-center rounded-full border border-white/15 text-xs text-white/55 transition hover:border-akz hover:text-akz">
                   {istOffen(k.id) ? '▾' : '▸'}
                 </button>
                 <span className="text-sm font-semibold text-white">
@@ -1290,10 +1290,10 @@ ${k.name}`)) return;
                   {k.art === 'schluessel' ? <T>Schlüssel</T> : <T>Konto</T>}
                 </span>
                 {k.rolle && (
-                  <span className="rounded-full border border-sky-500/50
-                                   bg-sky-500/10 px-2 py-0.5 text-[10px]
+                  <span className="rounded-full border border-akz/50
+                                   bg-akz/10 px-2 py-0.5 text-[10px]
                                    font-semibold uppercase tracking-wider
-                                   text-sky-400">
+                                   text-akz">
                     {k.rolle}
                   </span>
                 )}
@@ -1331,7 +1331,7 @@ ${k.name}`)) return;
                                     text-white/40">
                     <input type="checkbox" checked={Boolean(k.darfSchluessel)}
                       onChange={(e) => void schluesselRecht(k, e.target.checked)}
-                      className="h-3 w-3 accent-sky-500" />
+                      className="h-3 w-3 accent-akz" />
                     <T>Darf den Schlüssel selbst wechseln</T>
                   </label>
                 )}
@@ -1341,7 +1341,7 @@ ${k.name}`)) return;
                       + 'as admin you confirm the address yourself.')}
                     className="rounded-full border border-white/15 px-2 py-0.5
                                text-[10px] text-white/40 transition
-                               hover:border-sky-500 hover:text-sky-400">
+                               hover:border-akz hover:text-akz">
                     <T>nicht bestätigt</T> · <T>bestätigen</T>
                   </button>
                 )}
@@ -1369,7 +1369,7 @@ ${k.name}`)) return;
                       onClick={() => setOffenerSchluessel(
                         offenerSchluessel === k.name ? null : k.name)}
                       className="block font-mono text-[10px] text-white/20
-                                 transition hover:text-sky-400">
+                                 transition hover:text-akz">
                       {offenerSchluessel === k.name
                         ? k.schluessel
                         : <T>Schlüssel zeigen</T>}
@@ -1498,7 +1498,7 @@ ${k.name}`)) return;
                         <label key={b.schluessel}
                           className={`flex cursor-pointer items-start gap-2
                                       rounded-lg px-2 py-1.5 transition ${an
-                            ? 'bg-sky-500/10' : 'hover:bg-white/[0.06]'}`}>
+                            ? 'bg-akz/10' : 'hover:bg-white/[0.06]'}`}>
                           <input type="checkbox" checked={an}
                             onChange={() => {
                               const neu = an
@@ -1509,10 +1509,10 @@ ${k.name}`)) return;
                                   (k.vipBis - Date.now()) / 86_400_000)) : 0) : null,
                                 neu);
                             }}
-                            className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-sky-500" />
+                            className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-akz" />
                           <span className="min-w-0">
                             <span className={`block text-xs font-semibold ${an
-                              ? 'text-sky-400' : 'text-white/70'}`}>
+                              ? 'text-akz' : 'text-white/70'}`}>
                               <T>{b.titel}</T>
                             </span>
                             <span className="block text-[10px] text-white/30">
@@ -1585,7 +1585,7 @@ ${k.name}`)) return;
                 <button onClick={() => sperren(k, !k.gesperrt)}
                   className={`rounded-lg border px-3 py-1.5 text-[11px]
                               font-semibold transition ${k.gesperrt
-                    ? 'border-white/15 text-white/70 hover:border-sky-500 hover:text-sky-400'
+                    ? 'border-white/15 text-white/70 hover:border-akz hover:text-akz'
                     : 'border-white/10 text-white/40 hover:border-rose-500/60 hover:text-rose-400'}`}>
                   {k.gesperrt ? <T>freigeben</T> : <T>sperren</T>}
                 </button>

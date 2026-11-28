@@ -281,7 +281,7 @@ export default function LootRouten({ klassisch }: { klassisch?: () => void }) {
       <div className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <Glas className="p-4">
-            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300">1 · Cup match day</p>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-akz">1 · Cup match day</p>
             <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder="Search cup …" className={`${feld} w-full`} />
             <div className="mt-3 max-h-72 space-y-1 overflow-y-auto pr-1">
               {tage === null && <p className="p-2 text-xs text-white/45">Loading cups …</p>}
@@ -290,7 +290,7 @@ export default function LootRouten({ klassisch }: { klassisch?: () => void }) {
               {gefiltert.map((t, i) => (
                 <motion.button key={t.windowId} type="button" initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i, 15) * 0.02 }}
                   onClick={() => { setTag(t); setMatchId(null); setSpielerId(null); setAlleGames(false); }}
-                  className={`block w-full rounded-xl border px-3 py-2 text-left text-xs transition ${tag?.windowId === t.windowId ? 'border-sky-400/50 bg-sky-400/10 text-white' : 'border-transparent text-white/70 hover:border-white/10 hover:bg-white/[0.04]'}`}>
+                  className={`block w-full rounded-xl border px-3 py-2 text-left text-xs transition ${tag?.windowId === t.windowId ? 'border-akz/50 bg-akz/10 text-white' : 'border-transparent text-white/70 hover:border-white/10 hover:bg-white/[0.04]'}`}>
                   <span className="font-bold">{t.titel}</span>
                   <span className="mt-0.5 block text-[11px] text-white/40">{t.region} · {t.matches.length} games · <span className="font-mono">{t.windowId}</span></span>
                 </motion.button>
@@ -301,23 +301,23 @@ export default function LootRouten({ klassisch }: { klassisch?: () => void }) {
           <AnimatePresence>
             {tag && (
               <Glas key="game" className="p-4">
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300">2 · Game</p>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-akz">2 · Game</p>
                 <div className="flex flex-wrap gap-1.5">
                   {tag.matches.map((m) => (
                     <button key={m.id} type="button" onClick={() => setMatchId(m.id)} title={m.spieler ? `${m.spieler} players` : undefined}
-                      className={`h-8 min-w-[2.25rem] rounded-lg px-2.5 text-xs font-bold tabular-nums transition ${matchId === m.id ? 'bg-sky-400 text-[#06080f]' : 'border border-white/10 bg-white/[0.04] text-white/75 hover:border-sky-400/50 hover:text-white'}`}>{m.nr}</button>
+                      className={`h-8 min-w-[2.25rem] rounded-lg px-2.5 text-xs font-bold tabular-nums transition ${matchId === m.id ? 'bg-akz text-[#06080f]' : 'border border-white/10 bg-white/[0.04] text-white/75 hover:border-akz/50 hover:text-white'}`}>{m.nr}</button>
                   ))}
                 </div>
               </Glas>
             )}
             {aktuell && (
               <Glas key="spieler" className="p-4">
-                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-sky-300">3 · Player</p>
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.2em] text-akz">3 · Player</p>
                 <input value={spielerSuche} onChange={(e) => setSpielerSuche(e.target.value)} placeholder="Filter players …" className={`${feld} mb-2 w-full py-1.5 text-xs`} />
                 <div className="max-h-80 space-y-0.5 overflow-y-auto pr-1">
                   {spielerListe.map((s) => (
                     <button key={s.id} type="button" onClick={() => setSpielerId(s.id)}
-                      className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition ${spielerId === s.id ? 'bg-sky-400/15 text-white ring-1 ring-sky-400/40' : 'text-white/70 hover:bg-white/[0.05] hover:text-white'}`}>
+                      className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs transition ${spielerId === s.id ? 'bg-akz/15 text-white ring-1 ring-akz/40' : 'text-white/70 hover:bg-white/[0.05] hover:text-white'}`}>
                       <span className="w-8 shrink-0 tabular-nums text-white/35">#{s.platz ?? '–'}</span>
                       {land(s) && <img src={`/flags/${land(s)!.toLowerCase()}.png`} alt="" className="h-3 w-4 shrink-0 rounded-[2px] object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
                       <span className="min-w-0 flex-1 truncate font-medium">{ohneVorsatz(s.name)}</span>
@@ -326,7 +326,7 @@ export default function LootRouten({ klassisch }: { klassisch?: () => void }) {
                   ))}
                 </div>
                 <label className="mt-3 flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/75">
-                  <input type="checkbox" checked={alleGames} onChange={(e) => setAlleGames(e.target.checked)} className="accent-sky-400" />
+                  <input type="checkbox" checked={alleGames} onChange={(e) => setAlleGames(e.target.checked)} className="accent-akz" />
                   All games of this player on the match day
                 </label>
               </Glas>
@@ -339,7 +339,7 @@ export default function LootRouten({ klassisch }: { klassisch?: () => void }) {
             <div className="flex rounded-full border border-white/10 bg-black/30 p-1">
               {(['2d', '3d'] as const).map((a) => (
                 <button key={a} type="button" onClick={() => setAnsicht(a)} className={reiter(ansicht === a)}>
-                  {ansicht === a && <motion.span layoutId="loot-ansicht" className="absolute inset-0 rounded-full bg-sky-400" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+                  {ansicht === a && <motion.span layoutId="loot-ansicht" className="absolute inset-0 rounded-full bg-akz" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
                   <span className="relative">{a.toUpperCase()}</span>
                 </button>
               ))}
@@ -350,10 +350,10 @@ export default function LootRouten({ klassisch }: { klassisch?: () => void }) {
               </select>
             </label>
             <label className="flex min-w-[220px] flex-1 items-center gap-3 text-xs text-white/55">Time
-              <input type="range" min={0} max={dauer} value={zeit} onChange={(e) => setZeit(Number(e.target.value))} className="flex-1 accent-sky-400" />
+              <input type="range" min={0} max={dauer} value={zeit} onChange={(e) => setZeit(Number(e.target.value))} className="flex-1 accent-akz" />
               <span className="w-10 font-bold tabular-nums text-white">{uhr(zeit)}</span>
             </label>
-            {lade && <span className="flex items-center gap-2 text-xs text-sky-300"><span className="h-3 w-3 animate-spin rounded-full border-2 border-white/10 border-t-sky-400" />{lade}</span>}
+            {lade && <span className="flex items-center gap-2 text-xs text-akz"><span className="h-3 w-3 animate-spin rounded-full border-2 border-white/10 border-t-akz" />{lade}</span>}
           </Glas>
 
           <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">

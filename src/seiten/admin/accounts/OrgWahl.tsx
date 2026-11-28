@@ -32,12 +32,12 @@ export default function OrgWahl({ kontoId, org }: { kontoId: string; org: string
       <p className="mb-2 text-[10px] uppercase tracking-wider text-white/30">Esports team (organisation)</p>
       <div className="flex flex-wrap items-center gap-3">
         <select value={wert} onChange={(e) => void setzen(e.target.value)}
-          className="min-w-[14rem] rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-sky-500">
+          className="min-w-[14rem] rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white outline-none focus:border-akz">
           <option value="">— none —</option>
           {liste.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
         </select>
         {stand === 'speichert' && <span className="text-xs text-white/40">…</span>}
-        {stand === 'gespeichert' && <span className="text-xs font-semibold text-sky-500"><T>gespeichert</T></span>}
+        {stand === 'gespeichert' && <span className="text-xs font-semibold text-akz"><T>gespeichert</T></span>}
         {stand === 'fehler' && <span className="text-xs font-semibold text-rose-400"><T>Nicht gespeichert.</T></span>}
       </div>
       <p className="mt-2 text-[11px] leading-snug text-white/40">

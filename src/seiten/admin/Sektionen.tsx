@@ -101,7 +101,7 @@ export default function Sektionen({ klassisch }: { klassisch: () => void }) {
                         <div className="mt-3 grid gap-2 sm:grid-cols-2">
                           {daten.hinweise.map((h) => (
                             <button key={h.schluessel} type="button" onClick={() => setzen(s.schluessel, { zustand: 'standby', hinweis: h.schluessel })}
-                              className={`rounded-xl border p-3 text-left transition ${e.hinweis === h.schluessel ? 'border-sky-400 bg-sky-400/10' : 'border-white/10 hover:border-white/25'}`}>
+                              className={`rounded-xl border p-3 text-left transition ${e.hinweis === h.schluessel ? 'border-akz bg-akz/10' : 'border-white/10 hover:border-white/25'}`}>
                               <span className="block text-xs font-semibold text-white">{HINWEIS_EN[h.schluessel]?.name ?? h.name}</span>
                               <span className="mt-1 block text-[11px] leading-snug text-white/45">{(HINWEIS_EN[h.schluessel]?.titel ?? h.titel).replace('{bereich}', s.titel)}</span>
                             </button>
@@ -112,7 +112,7 @@ export default function Sektionen({ klassisch }: { klassisch: () => void }) {
                           placeholder="Headline — leave empty for the choice above" className={`${feld} mb-2 w-full`} />
                         <textarea defaultValue={e.eigenerText ?? ''} rows={3} onBlur={(ev) => { if (ev.target.value !== (e.eigenerText ?? '')) void setzen(s.schluessel, { zustand: 'standby', eigenerText: ev.target.value }); }}
                           placeholder="Text below — leave empty for the choice above" className={`${feld} w-full resize-y`} />
-                        <a href={`${SEITE}${s.pfad}`} target="_blank" rel="noreferrer" className="mt-3 inline-block text-[11px] text-white/45 transition hover:text-sky-300">View lock page →</a>
+                        <a href={`${SEITE}${s.pfad}`} target="_blank" rel="noreferrer" className="mt-3 inline-block text-[11px] text-white/45 transition hover:text-akz">View lock page →</a>
                         <p className="mt-1 text-[10px] text-white/30">As admin you see the area itself there — the lock page only shows to the others.</p>
                       </motion.div>
                     )}

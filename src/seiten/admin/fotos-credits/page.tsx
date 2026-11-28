@@ -149,8 +149,8 @@ export default function FotosCreditsSeite() {
     return <NurAdmins />;
   }
 
-  const chip = (an: boolean) => `rounded-full px-3 py-1 text-xs font-bold transition ${an ? 'bg-sky-500 text-white' : 'border border-white/10 bg-white/[0.035] backdrop-blur-xl text-white/55 hover:text-white'}`;
-  const feld = 'w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-xs text-white outline-none focus:border-sky-500';
+  const chip = (an: boolean) => `rounded-full px-3 py-1 text-xs font-bold transition ${an ? 'bg-akz text-[#04050a]' : 'border border-white/10 bg-white/[0.035] backdrop-blur-xl text-white/55 hover:text-white'}`;
+  const feld = 'w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-xs text-white outline-none focus:border-akz';
   const FILTER: Array<[Filter, string]> = [
     ['alle', 'All'], ['ohneFoto', 'No photo'], ['unbekannt', 'Photographer unknown'], ['wahrscheinlich', 'Probably'],
     ['offen', 'Entered, not confirmed'], ['bestaetigt', 'Confirmed'],
@@ -170,11 +170,11 @@ export default function FotosCreditsSeite() {
           {FILTER.map(([f, titel]) => (
             <button key={f} type="button" className={chip(filter === f)} onClick={() => { setFilter(f); setSeite(0); }}><T>{titel}</T> <span className="opacity-70">{zahlen[f]}</span></button>
           ))}
-          <input value={suche} onChange={(e) => { setSuche(e.target.value); setSeite(0); }} placeholder="Player, photographer …" className="ml-auto w-56 rounded-lg border border-white/10 bg-white/[0.035] backdrop-blur-xl px-3 py-1.5 text-sm outline-none focus:border-sky-500" />
+          <input value={suche} onChange={(e) => { setSuche(e.target.value); setSeite(0); }} placeholder="Player, photographer …" className="ml-auto w-56 fl !rounded-lg px-3 py-1.5 text-sm outline-none focus:border-akz" />
         </div>
 
         {/* Mehrfachauswahl */}
-        <section className="mb-4 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-3">
+        <section className="mb-4 fl !rounded-2xl p-3">
           <div className="mb-2 flex flex-wrap items-center gap-2 text-xs text-white/55">
             <b className="text-white/85">{gewaehlt.size}</b> <T>selected</T>
             <button type="button" className="rounded-md border border-white/15 px-2 py-0.5 hover:text-white" onClick={() => setGewaehlt(new Set(aufSeite.filter((z) => z.foto).map(schluessel)))}><T>Select this page</T></button>
@@ -191,17 +191,17 @@ export default function FotosCreditsSeite() {
             <select className={feld} value={sammel.bestaetigt} onChange={(e) => setSammel({ ...sammel, bestaetigt: e.target.value as '' | 'ja' | 'nein' })}>
               <option value="">Confirmed: unchanged</option><option value="ja">Confirmed: yes</option><option value="nein">Confirmed: no</option>
             </select>
-            <button type="button" onClick={sammelAnwenden} className="rounded-md bg-sky-500 px-3 py-1 text-xs font-bold text-white hover:bg-sky-400"><T>Apply to selection</T></button>
+            <button type="button" onClick={sammelAnwenden} className="rounded-md bg-akz px-3 py-1 text-xs font-bold text-[#04050a] hover:brightness-110"><T>Apply to selection</T></button>
           </div>
           <p className="mt-1 text-[11px] text-white/40">Empty fields stay unchanged. {sammelStatus}</p>
         </section>
 
         {/* Ein Spieler, der noch nicht in der Liste steht */}
-        <section className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-3 text-xs">
+        <section className="mb-4 flex flex-wrap items-center gap-2 fl !rounded-2xl p-3 text-xs">
           <span className="font-semibold text-white/70"><T>Photo for another player</T>:</span>
           <input className={`${feld} w-72`} placeholder="Epic account ID" value={neu.epicId} onChange={(e) => setNeu({ ...neu, epicId: e.target.value })} />
           <input className={`${feld} w-48`} placeholder="Name" value={neu.name} onChange={(e) => setNeu({ ...neu, name: e.target.value })} />
-          <label className="cursor-pointer rounded-md border border-sky-500/50 px-3 py-1 font-semibold text-sky-300 hover:bg-sky-500/10">
+          <label className="cursor-pointer rounded-md border border-akz/50 px-3 py-1 font-semibold text-akz hover:bg-akz/10">
             <T>Choose photo …</T>
             <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) hochladen(null, f); }} />
           </label>
@@ -228,18 +228,18 @@ export default function FotosCreditsSeite() {
             const oeffentlich = z.credit && (z.credit.quelle || z.credit.fotograf || z.credit.handle) && !/^unbekannt$/i.test(z.credit.quelle ?? '')
               ? [z.credit.quelle, z.credit.fotograf].filter(Boolean).join(' / ') || `@${z.credit.handle}` : '';
             return (
-              <div key={k} className={`flex gap-3 rounded-2xl border bg-white/[0.035] backdrop-blur-xl p-3 ${gewaehlt.has(k) ? 'border-sky-500' : 'border-white/10'}`}>
+              <div key={k} className={`flex gap-3 rounded-2xl border bg-white/[0.035] backdrop-blur-xl p-3 ${gewaehlt.has(k) ? 'border-akz' : 'border-white/10'}`}>
                 <div className="flex w-24 shrink-0 flex-col gap-1.5">
                   <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-white/[0.07]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     {z.bild ? <img src={z.bild} alt="" loading="lazy" className="h-full w-full object-cover" />
                       : <span className="grid h-full place-items-center text-[10px] text-white/40"><T>kein Foto</T></span>}
                     {z.foto && (
-                      <input type="checkbox" aria-label="select" checked={gewaehlt.has(k)} className="absolute left-1 top-1 h-4 w-4 accent-sky-500"
+                      <input type="checkbox" aria-label="select" checked={gewaehlt.has(k)} className="absolute left-1 top-1 h-4 w-4 accent-akz"
                         onChange={(ev) => setGewaehlt((s) => { const n = new Set(s); if (ev.target.checked) n.add(k); else n.delete(k); return n; })} />
                     )}
                   </div>
-                  <label className="cursor-pointer rounded-md border border-sky-500/50 px-1 py-0.5 text-center text-[11px] font-semibold text-sky-300 hover:bg-sky-500/10">
+                  <label className="cursor-pointer rounded-md border border-akz/50 px-1 py-0.5 text-center text-[11px] font-semibold text-akz hover:bg-akz/10">
                     {z.foto ? <T>Replace …</T> : <T>Upload …</T>}
                     <input type="file" accept="image/*" className="hidden" onChange={(ev) => { const f = ev.target.files?.[0]; ev.target.value = ''; if (f) hochladen(z, f); }} />
                   </label>
@@ -266,11 +266,11 @@ export default function FotosCreditsSeite() {
                       <T>bestätigt</T>
                     </label>
                     <label className="flex items-center gap-1.5 text-white/55" title="Also show the small tag on the photo when the source has many photos">
-                      <input type="checkbox" className="accent-sky-500" checked={e.einzeln} onChange={(x) => setzeEnt(z, { einzeln: x.target.checked })} />
+                      <input type="checkbox" className="accent-akz" checked={e.einzeln} onChange={(x) => setzeEnt(z, { einzeln: x.target.checked })} />
                       <T>on photo</T>
                     </label>
                     {z.foto && (
-                      <button type="button" disabled={!geaendert} onClick={() => speichern(z)} className="rounded-md bg-sky-500 px-2 py-0.5 font-bold text-white disabled:opacity-30"><T>Speichern</T></button>
+                      <button type="button" disabled={!geaendert} onClick={() => speichern(z)} className="rounded-md bg-akz px-2 py-0.5 font-bold text-[#04050a] disabled:opacity-30"><T>Speichern</T></button>
                     )}
                   </div>
                   {status[k] && <p className={`text-[11px] ${status[k].startsWith('Fehler') ? 'text-rose-300' : 'text-white/40'}`}>{status[k]}</p>}
@@ -305,9 +305,9 @@ function ExtraQuellen() {
     if (!j.ok) { setStatus(`Error: ${j.error}`); return; }
     await laden(); setStatus('gespeichert');
   };
-  const feld = 'w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-xs text-white outline-none focus:border-sky-500';
+  const feld = 'w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-xs text-white outline-none focus:border-akz';
   return (
-    <section className="mb-4 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-3 text-xs">
+    <section className="mb-4 fl !rounded-2xl p-3 text-xs">
       <button type="button" onClick={() => setOffen(!offen)} className="font-semibold text-white/85">{offen ? '▾' : '▸'}  List “Photos from” – add by hand</button>
       {offen && (
         <div className="mt-2 space-y-3">
@@ -328,7 +328,7 @@ function ExtraQuellen() {
             </div>
           ))}
           <div className="flex items-center gap-2">
-            <button type="button" onClick={speichern} disabled={!extra} className="rounded-md bg-sky-500 px-3 py-1 font-bold text-white disabled:opacity-30">Save</button>
+            <button type="button" onClick={speichern} disabled={!extra} className="rounded-md bg-akz px-3 py-1 font-bold text-[#04050a] disabled:opacity-30">Save</button>
             <span className="text-white/40">{status}</span>
           </div>
         </div>

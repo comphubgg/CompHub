@@ -36,8 +36,8 @@ const zahlOder = (v: string): number | null => (v.trim() && Number.isFinite(Numb
 const namenVon = (t: Team) => t.spieler.map((s) => s.name).join(' & ');
 const tagVon = (ms: number | null) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
 
-const FELD = 'rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-sky-500';
-const ZAHL = 'w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-right text-sm tabular-nums text-white outline-none focus:border-sky-500';
+const FELD = 'rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-akz';
+const ZAHL = 'w-full rounded-md border border-white/10 bg-black/40 px-2 py-1 text-right text-sm tabular-nums text-white outline-none focus:border-akz';
 
 export default function AlteMapBearbeiten() {
   const t = useT();
@@ -311,7 +311,7 @@ export default function AlteMapBearbeiten() {
             <div className="mt-5 inline-flex flex-wrap gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
               {REITER.map(([k, titel]) => (
                 <button key={k} type="button" onClick={() => setReiter(k)}
-                  className={`rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${reiter === k ? 'bg-sky-500 text-white shadow' : 'text-white/55 hover:text-white'}`}>
+                  className={`rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${reiter === k ? 'bg-akz text-[#04050a] shadow' : 'text-white/55 hover:text-white'}`}>
                   <T>{titel}</T>{k === 'teams' && <span className="ml-1.5 opacity-60">{teams.length}</span>}{k === 'formen' && <span className="ml-1.5 opacity-60">{formen.length}</span>}
                 </button>
               ))}
@@ -324,12 +324,12 @@ export default function AlteMapBearbeiten() {
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     {([['rechteck', 'Rectangle'], ['polygon', 'Free shape'], ['waehlen', 'Select']] as const).map(([k, titel]) => (
                       <button key={k} type="button" onClick={() => setModus(k)}
-                        className={`rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition ${modus === k ? 'bg-sky-500 text-white' : 'border border-white/10 bg-white/[0.03] text-white/70 hover:border-sky-500/60'}`}>
+                        className={`rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition ${modus === k ? 'bg-akz text-[#04050a]' : 'border border-white/10 bg-white/[0.03] text-white/70 hover:border-akz/60'}`}>
                         <T>{titel}</T>
                       </button>
                     ))}
                     {wahl && <button type="button" onClick={formWeg} className="rounded-lg border border-rose-500/40 px-3 py-1.5 text-xs font-bold text-rose-300 transition hover:bg-rose-500/10"><T>Delete shape</T></button>}
-                    <button type="button" onClick={() => setBilderOffen((v) => !v)} className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:border-sky-500/60"><T>Pick map image</T></button>
+                    <button type="button" onClick={() => setBilderOffen((v) => !v)} className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:border-akz/60"><T>Pick map image</T></button>
                   </div>
                   <p className="mb-2 text-[11px] text-white/40">
                     {modus === 'rechteck' && <T>Drag on the map to draw a rectangle.</T>}
@@ -343,7 +343,7 @@ export default function AlteMapBearbeiten() {
                       <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-8">
                         {auswahl.map((a) => (
                           <button key={a.u} type="button" title={a.titel} onClick={() => void bildWaehlen(a.u)}
-                            className={`overflow-hidden rounded-lg border text-left transition ${bild === a.u ? 'border-sky-400' : 'border-white/10 hover:border-sky-500/60'}`}>
+                            className={`overflow-hidden rounded-lg border text-left transition ${bild === a.u ? 'border-akz' : 'border-white/10 hover:border-akz/60'}`}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={encodeURI(a.u)} alt="" loading="lazy" className="aspect-square w-full object-cover" />
                             <span className="block truncate px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide text-white/55">{a.titel}</span>
@@ -379,7 +379,7 @@ export default function AlteMapBearbeiten() {
                           return x ? (
                             <li key={id}>
                               <button type="button" onClick={() => zuordnen(id)} title={t('Remove from shape')}
-                                className="rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[11px] font-bold uppercase text-sky-100 transition hover:bg-rose-500/20">{namenVon(x).replace(/ & /g, ' · ')} ×</button>
+                                className="rounded-md border border-akz/40 bg-akz/10 px-2 py-1 text-[11px] font-bold uppercase text-akz transition hover:bg-rose-500/20">{namenVon(x).replace(/ & /g, ' · ')} ×</button>
                             </li>
                           ) : null;
                         })}
@@ -395,7 +395,7 @@ export default function AlteMapBearbeiten() {
                   <div className="mt-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">Teams <span className="text-white/30">{teams.length ? teams.length : pool.length}</span></p>
-                      <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')} className="w-40 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1 text-xs text-white outline-none placeholder:text-white/30 focus:border-sky-500" />
+                      <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')} className="w-40 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1 text-xs text-white outline-none placeholder:text-white/30 focus:border-akz" />
                     </div>
                     {poolSichtbar.length === 0 && <p className="py-4 text-center text-xs text-white/40"><T>No teams yet - search players above or create many at once in the “Teams” tab.</T></p>}
                     <ul className="max-h-[520px] space-y-1.5 overflow-y-auto pr-1">
@@ -404,7 +404,7 @@ export default function AlteMapBearbeiten() {
                         return (
                           <li key={x.id}>
                             <button type="button" onClick={() => zuordnen(x.id)}
-                              className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${drauf === wahl && wahl ? 'border-sky-500/70 bg-sky-500/10' : drauf ? 'border-white/[0.06] bg-white/[0.03] opacity-60 hover:opacity-100' : 'border-white/[0.08] bg-white/[0.03] hover:border-sky-500/50'}`}>
+                              className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${drauf === wahl && wahl ? 'border-akz/70 bg-akz/10' : drauf ? 'border-white/[0.06] bg-white/[0.03] opacity-60 hover:opacity-100' : 'border-white/[0.08] bg-white/[0.03] hover:border-akz/50'}`}>
                               <TeamFlagge groesse={x.spieler.length > 1 ? 28 : 22} laender={x.spieler.map((s) => s.land ?? undefined)} />
                               <span className="flex min-w-0 flex-col text-[11px] font-bold uppercase leading-[1.25] text-white">
                                 {x.spieler.map((s, i) => <span key={i} className="truncate">{s.name}</span>)}
@@ -430,7 +430,7 @@ export default function AlteMapBearbeiten() {
                   <p className="mt-1 text-xs text-white/40"><T>One line per team, names separated by &. Each name is searched in the archive: with exactly one match, flag and account are added.</T></p>
                   <textarea value={masse} onChange={(e) => setMasse(e.target.value)} rows={10} placeholder={'Sky & Scroll\nVico & Malibuca\nPeterbot & Pollo'} className={`${FELD} mt-3 w-full font-mono`} />
                   <div className="mt-3 flex items-center gap-3">
-                    <button type="button" onClick={() => void masseHinzu()} disabled={!masse.trim()} className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-400 disabled:opacity-40"><T>Create teams</T></button>
+                    <button type="button" onClick={() => void masseHinzu()} disabled={!masse.trim()} className="rounded-lg bg-akz px-4 py-2 text-sm font-bold text-[#04050a] transition hover:brightness-110 disabled:opacity-40"><T>Create teams</T></button>
                     {teams.length > 0 && <button type="button" onClick={alleWeg} className="ml-auto text-xs font-semibold text-white/40 transition hover:text-rose-300"><T>Delete all</T></button>}
                   </div>
                 </div>
@@ -438,7 +438,7 @@ export default function AlteMapBearbeiten() {
                 <div className="min-w-0 rounded-xl border border-white/[0.08] bg-white/[0.03] p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">Teams <span className="text-white/30">{teams.length}</span></p>
-                    <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')} className="w-48 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1 text-xs text-white outline-none placeholder:text-white/30 focus:border-sky-500" />
+                    <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')} className="w-48 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1 text-xs text-white outline-none placeholder:text-white/30 focus:border-akz" />
                   </div>
                   {teams.length === 0 && <p className="py-8 text-center text-sm text-white/40"><T>No teams yet.</T></p>}
                   <ul className="space-y-1.5">
@@ -447,7 +447,7 @@ export default function AlteMapBearbeiten() {
                         <div className="flex items-center gap-2.5 px-2.5 py-1.5">
                           <TeamFlagge groesse={x.spieler.length > 1 ? 28 : 22} laender={x.spieler.map((s) => s.land ?? undefined)} />
                           <input defaultValue={namenVon(x)} key={`${x.id}|${namenVon(x)}`} onBlur={(e) => void namenAendern(x, e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-bold uppercase text-white outline-none transition hover:border-white/15 focus:border-sky-500 focus:bg-black/40" />
+                            className="min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 py-1 text-sm font-bold uppercase text-white outline-none transition hover:border-white/15 focus:border-akz focus:bg-black/40" />
                           <button type="button" onClick={() => setOffenesTeam(offenesTeam === x.id ? null : x.id)} className="rounded-md px-2 py-1 text-[11px] font-semibold text-white/55 transition hover:bg-white/[0.06]"><T>Countries</T></button>
                           <button type="button" onClick={() => teamWeg(x.id)} title={t('Delete team')} className="rounded-md px-2 py-1 text-white/30 transition hover:bg-rose-500/15 hover:text-rose-300">×</button>
                         </div>
@@ -458,7 +458,7 @@ export default function AlteMapBearbeiten() {
                                 <span className="font-bold uppercase text-white/70">{s.name}</span>
                                 <TeamFlagge groesse={16} laender={[s.land ?? undefined]} />
                                 <input value={s.land ?? ''} maxLength={2} placeholder="DE" onChange={(e) => teamAendern(x.id, (alt) => ({ ...alt, spieler: alt.spieler.map((q, j) => (j === i ? { ...q, land: e.target.value.toUpperCase() } : q)) }))}
-                                  className="w-12 rounded-md border border-white/10 bg-black/40 px-2 py-1 text-center text-xs uppercase text-white outline-none focus:border-sky-500" />
+                                  className="w-12 rounded-md border border-white/10 bg-black/40 px-2 py-1 text-center text-xs uppercase text-white outline-none focus:border-akz" />
                               </label>
                             ))}
                           </div>
@@ -476,7 +476,7 @@ export default function AlteMapBearbeiten() {
                 <div className="mb-3 flex flex-wrap items-center gap-3">
                   <p className="text-xs text-white/40"><T>Place, points, Victory Royales and eliminations per team - all by hand. Teams are created in the “Teams” tab.</T></p>
                   <button type="button" onClick={() => { const nach = [...teams].filter((x) => x.punkte != null).sort((a, b) => (b.punkte ?? 0) - (a.punkte ?? 0)); setTeams((alt) => alt.map((x) => ({ ...x, rang: x.punkte != null ? nach.findIndex((y) => y.id === x.id) + 1 : x.rang ?? null }))); aendern(); }}
-                    className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:border-sky-500/60"><T>Assign places by points</T></button>
+                    className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:border-akz/60"><T>Assign places by points</T></button>
                   <button type="button" onClick={() => { setTeams((alt) => alt.map((x) => ({ ...x, rang: null }))); aendern(); }} className="text-xs font-semibold text-white/40 transition hover:text-rose-300"><T>Clear places</T></button>
                 </div>
                 {teams.length === 0 ? <p className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-8 text-center text-sm text-white/40"><T>No teams yet - create them in the “Teams” tab first.</T></p> : (
@@ -532,7 +532,7 @@ export default function AlteMapBearbeiten() {
                   </label>
                 )}
                 <div className="flex flex-wrap items-center gap-3 border-t border-white/[0.08] pt-4">
-                  <button type="button" onClick={() => void verstecken(!versteckt)} className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-sky-500/60">{versteckt ? <T>Show again</T> : <T>Remove from the list</T>}</button>
+                  <button type="button" onClick={() => void verstecken(!versteckt)} className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-white/85 transition hover:border-akz/60">{versteckt ? <T>Show again</T> : <T>Remove from the list</T>}</button>
                   {eigenesEvent && <button type="button" onClick={() => void loeschen()} className="rounded-lg border border-rose-500/40 px-4 py-2 text-sm font-semibold text-rose-300 transition hover:bg-rose-500/10"><T>Delete event</T></button>}
                   {versteckt && <span className="text-xs text-rose-300"><T>This map is hidden right now.</T></span>}
                 </div>

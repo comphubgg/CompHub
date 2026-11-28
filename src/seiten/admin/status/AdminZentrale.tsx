@@ -165,7 +165,7 @@ export default function AdminZentrale({ zeigeLaeufe = true, teil = 'status' }: {
   );
 
   return (
-    <section className={teil === 'status' ? '' : 'rounded-3xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-6'}>
+    <section className={teil === 'status' ? '' : 'fl p-6'}>
       <div className="flex flex-wrap items-baseline gap-2">
         {teil !== 'status' && <h2 className="text-xl font-extrabold text-white">{teil === 'werkzeuge' ? <T>Admin-Werkzeuge</T> : <T>Admin-Zentrale</T>}</h2>}
         {teil !== 'status' && <span className="text-xs text-white/40"><T>sichtbar nur für dich</T></span>}
@@ -174,12 +174,12 @@ export default function AdminZentrale({ zeigeLaeufe = true, teil = 'status' }: {
             {stand && <span className="text-[11px] text-white/30"><T>Stand</T> {stand}</span>}
             <button type="button" onClick={() => laden(true)} disabled={laedt}
               className="rounded-full border border-white/15 px-3.5 py-1.5 text-[11px] font-semibold text-white/70 transition
-                         hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
+                         hover:border-akz hover:text-akz disabled:opacity-50">
               {laedt ? <T>Wird geladen …</T> : <T>Aktualisieren</T>}
             </button>
             <button type="button" onClick={() => void allesAktualisieren()} disabled={alles === 'laeuft'}
-              className="rounded-full border border-sky-500/50 bg-sky-500/10 px-3.5 py-1.5 text-[11px] font-bold text-sky-300
-                         transition hover:bg-sky-500/20 disabled:opacity-50">
+              className="rounded-full border border-akz/50 bg-akz/10 px-3.5 py-1.5 text-[11px] font-bold text-akz
+                         transition hover:bg-akz/20 disabled:opacity-50">
               {alles === 'laeuft' ? <T>Wird gestartet …</T> : <T>Alles aktualisieren</T>}
             </button>
           </span>
@@ -211,7 +211,7 @@ export default function AdminZentrale({ zeigeLaeufe = true, teil = 'status' }: {
                     <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${a.punkt} ${j.aktiv ? 'animate-pulse' : ''}`} />
                     <span className="text-sm font-semibold text-white">{t(j.name)}</span>
                   </span>
-                  <span className={`mt-1.5 block text-[11px] ${j.aktiv ? 'text-sky-400' : a.text}`}>
+                  <span className={`mt-1.5 block text-[11px] ${j.aktiv ? 'text-akz' : a.text}`}>
                     {j.aktiv
                       ? `${(j.aktiv.status === 'queued' || j.aktiv.status === 'pending' ? 'waiting' : 'running')} · ${vor(j.aktiv.zeit, t)}`
                       : j.letzter
@@ -233,7 +233,7 @@ export default function AdminZentrale({ zeigeLaeufe = true, teil = 'status' }: {
             <Kennzahl wert={replays ? String(replayOffen) : '…'} titel="Replays in der Frist noch offen" href="/admin/replays" ernst={replayOffen > Math.max(50, (replays?.imFristGesamt ?? 0) * 0.005)} />
             <Kennzahl wert={daten ? String(probleme) : '…'} titel="Läufe mit Problem" href="#" ernst={probleme > 0} />
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-4">
-              <span className="schrift-anzeige block text-4xl font-extrabold tabular-nums text-sky-400">
+              <span className="schrift-anzeige block text-4xl font-extrabold tabular-nums text-akz">
                 {replays && replays.gesamt ? `${(replays.ausgewertet / replays.gesamt * 100).toFixed(1)}%` : '…'}
               </span>
               <span className="mt-0.5 block text-xs text-white/55"><T>aller Replays ausgewertet</T></span>

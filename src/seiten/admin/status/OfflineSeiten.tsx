@@ -57,7 +57,7 @@ export default function OfflineSeiten() {
           <span className="text-sm font-semibold text-white"><T>{s.titel}</T></span>
           <code className="font-mono text-[10px] text-white/30">{s.pfad}</code>
           <span className="text-[11px] text-white/40"><T>{NAME[zustand].titel}</T> · <T>{NAME[zustand].was}</T></span>
-          <Link href={s.pfad} className="ml-auto text-xs text-sky-400 transition hover:text-sky-300"><T>Ansehen</T></Link>
+          <Link href={s.pfad} className="ml-auto text-xs text-akz transition hover:text-akz"><T>Ansehen</T></Link>
         </div>
       ))}
       <p className="text-[11px] text-white/30">

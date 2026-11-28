@@ -37,8 +37,8 @@ function zahlenZeile(t: Treffer): string | null {
   return teile.join(' · ') || null;
 }
 
-const feld = 'w-full rounded-lg border border-white/15 bg-white/[0.035] backdrop-blur-xl px-3 py-2 text-sm text-white focus:border-sky-500 focus:outline-none';
-const knopf = 'rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:border-sky-500 hover:text-sky-300 disabled:opacity-40';
+const feld = 'w-full rounded-lg border border-white/15 bg-white/[0.035] backdrop-blur-xl px-3 py-2 text-sm text-white focus:border-akz focus:outline-none';
+const knopf = 'rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-white/85 transition hover:border-akz hover:text-akz disabled:opacity-40';
 
 function verschieben<T>(liste: T[], i: number, um: number): T[] {
   const j = i + um;
@@ -111,7 +111,7 @@ export default function AwardsEditor() {
   return (
     <main className="pb-32">
       <SeitenKopf marke="Admin only · not public" titel="CompHub Awards 2026"
-        text={<>Current phase: <b className="text-sky-300">{PHASE[phase] ?? phase}</b> · {waehler} voter{waehler === 1 ? '' : 's'} so far</>}
+        text={<>Current phase: <b className="text-akz">{PHASE[phase] ?? phase}</b> · {waehler} voter{waehler === 1 ? '' : 's'} so far</>}
         rechts={<>
           <Link href="/awards" target="_blank" className={knopf}>Preview /awards ↗</Link>
           <button type="button" onClick={() => void laden()} disabled={speichert} className={knopf}>Reload</button>
@@ -165,7 +165,7 @@ export default function AwardsEditor() {
           <span className={`text-sm ${geaendert ? 'text-amber-300' : meldung.startsWith('Not') ? 'text-rose-300' : 'text-white/55'}`}>
             {geaendert ? 'Unsaved changes' : meldung || 'Everything saved'}
           </span>
-          <button type="button" onClick={() => void speichern()} disabled={!geaendert || speichert} className="rounded-xl bg-sky-500 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-sky-400 disabled:opacity-40">
+          <button type="button" onClick={() => void speichern()} disabled={!geaendert || speichert} className="rounded-xl bg-akz px-6 py-2.5 text-sm font-bold text-[#04050a] transition hover:brightness-110 disabled:opacity-40">
             {speichert ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -282,7 +282,7 @@ function NominierterZeile({ n, stimmen, gesamt, aendern, hoch, runter, entfernen
           <span className="block truncate text-sm font-semibold text-white">{n.name} {n.land && <span className="text-xs text-white/40">{n.land}</span>}</span>
           <span className="block truncate text-xs text-white/40">{[n.art === 'spieler' ? 'Player' : n.art === 'clip' ? 'Play' : 'Person', n.team, n.statZeile].filter(Boolean).join(' · ')}</span>
         </button>
-        {gesamt > 0 && <span className="text-xs font-semibold text-sky-300">{stimmen} ({Math.round((stimmen / gesamt) * 100)}%)</span>}
+        {gesamt > 0 && <span className="text-xs font-semibold text-akz">{stimmen} ({Math.round((stimmen / gesamt) * 100)}%)</span>}
         <div className="flex gap-1">
           <button type="button" onClick={hoch} disabled={!hoch} className={knopf} aria-label="Move up">↑</button>
           <button type="button" onClick={runter} disabled={!runter} className={knopf} aria-label="Move down">↓</button>

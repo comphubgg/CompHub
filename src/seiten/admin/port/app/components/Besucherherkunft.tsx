@@ -127,7 +127,7 @@ export default function Besucherherkunft() {
           {SPANNEN.map((s) => (
             <button key={s.wert} type="button" onClick={() => { if (s.wert !== spanne) { setLaedt(true); setSpanne(s.wert); } }} aria-pressed={spanne === s.wert}
               className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
-                spanne === s.wert ? 'bg-sky-500/15 text-sky-400' : 'border border-white/10 text-white/40 hover:text-white/70'}`}>
+                spanne === s.wert ? 'bg-akz/15 text-akz' : 'border border-white/10 text-white/40 hover:text-white/70'}`}>
               <T>{s.text}</T>
             </button>
           ))}
@@ -164,7 +164,7 @@ export default function Besucherherkunft() {
                 </ul>
                 {daten.laender.length > 12 && (
                   <button type="button" onClick={() => setAlleLaender((a) => !a)}
-                    className="mt-1.5 text-[11px] font-semibold text-sky-400 hover:text-sky-300">
+                    className="mt-1.5 text-[11px] font-semibold text-akz hover:text-akz">
                     {alleLaender ? <T>Weniger zeigen</T> : <>{t('Alle zeigen')} ({daten.laender.length})</>}
                   </button>
                 )}
@@ -243,7 +243,7 @@ export default function Besucherherkunft() {
                   <ol className="space-y-0.5">
                     {daten.spieler.map((s, i) => (
                       <li key={s.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-xs hover:bg-white/[0.08]">
-                        <a href={`/statistics?spieler=${s.id}`} className="flex min-w-0 items-center gap-2 text-white/85 hover:text-sky-400">
+                        <a href={`/statistics?spieler=${s.id}`} className="flex min-w-0 items-center gap-2 text-white/85 hover:text-akz">
                           <span className="w-5 shrink-0 text-right tabular-nums text-white/40">{i + 1}.</span>
                           <span className="truncate">{s.name ?? <span className="font-mono text-[10px] text-white/40">{s.id.slice(0, 12)}…</span>}</span>
                         </a>

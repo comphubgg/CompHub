@@ -111,7 +111,7 @@ export default function AssetsVerwaltung() {
             <button key={w} onClick={() => { setBereich(w); setOrdner(''); }}
               className={`rounded-lg border px-3 py-1.5 text-xs font-semibold
                           transition ${bereich === w
-                ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                ? 'border-akz bg-akz/15 text-akz'
                 : 'border-white/10 text-white/40 hover:text-white/70'}`}>
               <T>{titel}</T>
               <span className="ml-1.5 font-normal tabular-nums text-white/30">
@@ -131,7 +131,7 @@ export default function AssetsVerwaltung() {
               <button key={o.name} onClick={() => setOrdner(o.name)}
                 className={`flex w-full items-center gap-2 rounded-lg border
                             px-3 py-2 text-left text-xs transition ${ordner === o.name
-                  ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                  ? 'border-akz bg-akz/10 text-akz'
                   : 'border-white/10 text-white/55 hover:border-white/15'}`}>
                 <span className="truncate">{o.name}</span>
                 <span className="ml-auto tabular-nums text-white/30">
@@ -154,7 +154,7 @@ export default function AssetsVerwaltung() {
               className="mt-2 w-full rounded-lg border border-white/10
                          bg-white/[0.04] px-3 py-1.5 text-xs text-white
                          outline-none placeholder:text-white/30
-                         focus:border-sky-500" />
+                         focus:border-akz" />
           </div>
 
           {/* -------------------------------------------------- Der Inhalt */}
@@ -170,7 +170,7 @@ export default function AssetsVerwaltung() {
               onClick={() => dateiFeld.current?.click()}
               className={`mb-4 cursor-pointer rounded-xl border-2 border-dashed
                           px-6 py-8 text-center transition ${ueberZiel
-                ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 hover:border-white/15'}`}>
+                ? 'border-akz bg-akz/10' : 'border-white/10 hover:border-white/15'}`}>
               <p className="text-sm text-white/55">
                 {laedtHoch ? <T>uploading …</T>
                   : <T>Drag files here or click</T>}
@@ -189,7 +189,7 @@ export default function AssetsVerwaltung() {
             </div>
 
             {meldung && (
-              <p className="mb-3 text-[11px] text-sky-400/90">{meldung}</p>
+              <p className="mb-3 text-[11px] text-akz/90">{meldung}</p>
             )}
 
             {aktiv?.dateien.length ? (

@@ -146,7 +146,7 @@ export default function Nutzungszahlen() {
         </div>
         <div className="flex flex-wrap items-center gap-1">
           <button type="button" onClick={() => setNochmal((n) => n + 1)} disabled={laedt}
-            className="mr-1 rounded-md border border-white/10 px-2.5 py-1 text-xs font-semibold text-white/55 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
+            className="mr-1 rounded-md border border-white/10 px-2.5 py-1 text-xs font-semibold text-white/55 transition hover:border-akz hover:text-akz disabled:opacity-50">
             {laedt ? <T>Wird geladen …</T> : <T>Aktualisieren</T>}
           </button>
           {SPANNEN.map((s) => (
@@ -154,7 +154,7 @@ export default function Nutzungszahlen() {
               aria-pressed={spanne === s}
               className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
                 spanne === s
-                  ? 'bg-sky-500/15 text-sky-400'
+                  ? 'bg-akz/15 text-akz'
                   : 'border border-white/10 text-white/40 hover:text-white/70'}`}>
               {s} <T>Tage</T>
             </button>

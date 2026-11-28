@@ -82,7 +82,7 @@ export default function AnkuendigungsTweet({ cupName, finale, region, datum, fel
             {TITEL.map((f, i) => (
               <button key={i} type="button" onClick={() => setWahl(i)}
                 className={`rounded-lg border px-3 py-2 text-left text-sm font-extrabold tracking-wide transition ${wahl === i
-                  ? 'border-sky-500 bg-sky-500/10 text-sky-200' : 'border-white/10 text-white/70 hover:border-white/25'}`}>
+                  ? 'border-akz bg-akz/10 text-akz' : 'border-white/10 text-white/70 hover:border-white/25'}`}>
                 {f(cup)}
               </button>
             ))}
@@ -100,7 +100,7 @@ export default function AnkuendigungsTweet({ cupName, finale, region, datum, fel
                       : (setAbgewaehlt((a) => ({ ...a, [v.x]: false })), setZusaetzlich((a) => ({ ...a, [v.x]: true }))))}
                     title={`${v.name} · #${v.platz}${v.streamer ? ' · Streamer' : ''}`}
                     className={`rounded-full border px-2.5 py-1 text-xs transition ${an
-                      ? 'border-sky-500 bg-sky-500/15 text-sky-200' : 'border-white/10 text-white/55 hover:border-white/25'}`}>
+                      ? 'border-akz bg-akz/15 text-akz' : 'border-white/10 text-white/55 hover:border-white/25'}`}>
                     @{v.x}
                     {v.streamer && <span className="ml-1 rounded bg-violet-500/25 px-1 text-[9px] font-bold uppercase text-violet-300">{t('Streamer')}</span>}
                   </button>
@@ -119,7 +119,7 @@ export default function AnkuendigungsTweet({ cupName, finale, region, datum, fel
             className="w-full resize-none rounded-xl border border-white/10 bg-black/40 px-3 py-2 text-sm leading-relaxed text-white/85 outline-none" />
           <div className="mt-2 flex items-center gap-3">
             <button type="button" onClick={() => void kopieren()}
-              className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400">
+              className="rounded-lg bg-akz px-4 py-2 text-sm font-semibold text-[#04050a] transition hover:brightness-110">
               {kopiert ? <T>Kopiert</T> : <T>Copy tweet</T>}
             </button>
             <span className={`text-xs ${text.length > 280 ? 'text-amber-400' : 'text-white/40'}`}>{text.length} / 280</span>

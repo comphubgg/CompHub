@@ -131,7 +131,7 @@ export function ArchivVideo({ e, t }: { e: GalerieEintrag; t: (s: string) => str
   if (e.ausstehend && !e.url) {
     return (
       <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] text-center">
-        <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-sky-400" />
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/15 border-t-akz" />
         <span className="px-4 text-xs text-white/55">{t('The video is being prepared - it plays here within an hour at the latest.')}</span>
       </div>
     );
@@ -157,7 +157,7 @@ export function ArchivVideo({ e, t }: { e: GalerieEintrag; t: (s: string) => str
   return (
     <a href={e.url} target="_blank" rel="noreferrer"
       className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg border
-                 border-white/10 bg-white/[0.03] text-white/70 transition hover:border-sky-500 hover:text-sky-400">
+                 border-white/10 bg-white/[0.03] text-white/70 transition hover:border-akz hover:text-akz">
       <span className="text-2xl">▶</span>
       <span className="text-sm font-semibold">{t('Open video')}</span>
       <span className="max-w-[90%] truncate text-[11px] text-white/30">{e.url}</span>
@@ -202,7 +202,7 @@ export function ArchivRaster({ liste, spieler, ohne, istAdmin, aufOeffnen, aufEn
             <div key={b.id} role="button" tabIndex={0} onClick={() => aufOeffnen(b.id)}
               onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); aufOeffnen(b.id); } }}
               className="foto-dunkel group relative block w-full cursor-pointer break-inside-avoid overflow-hidden rounded-xl
-                         border border-white/10 bg-white/[0.035] backdrop-blur-xl transition hover:border-sky-500 focus:border-sky-500 focus:outline-none">
+                         border border-white/10 bg-white/[0.035] backdrop-blur-xl transition hover:border-akz focus:border-akz focus:outline-none">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={bildPfad(b)} alt={b.titel ?? ''} loading="lazy"
                 className="block w-full transition duration-300 group-hover:scale-[1.02]" />
@@ -271,21 +271,21 @@ export function Lichtkasten({ bilder, offen, ueberschrift, spieler, aufSchliesse
           {ueberschrift(b)}
           <span className="ml-2 text-white/30">{index + 1} / {bilder.length}</span>
         </span>
-        <button onClick={aufSchliessen} className="rounded-md border border-white/15 px-2.5 py-1 text-xs hover:border-sky-500 hover:text-sky-400">
+        <button onClick={aufSchliessen} className="rounded-md border border-white/15 px-2.5 py-1 text-xs hover:border-akz hover:text-akz">
           ✕ <T>Schließen</T>
         </button>
       </div>
       <div className="relative flex min-h-0 flex-1 items-center justify-center px-12">
         {index > 0 && (
           <button onClick={(e) => { e.stopPropagation(); aufWechseln(bilder[index - 1].id); }}
-            className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-black/60 p-3 text-white/85 hover:border-sky-500">‹</button>
+            className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-black/60 p-3 text-white/85 hover:border-akz">‹</button>
         )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={bildPfad(b)} alt={b.titel ?? ''} onClick={(e) => e.stopPropagation()}
           className="max-h-full max-w-full rounded-lg object-contain" />
         {index < bilder.length - 1 && (
           <button onClick={(e) => { e.stopPropagation(); aufWechseln(bilder[index + 1].id); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-black/60 p-3 text-white/85 hover:border-sky-500">›</button>
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-white/15 bg-black/60 p-3 text-white/85 hover:border-akz">›</button>
         )}
       </div>
       <div className="flex flex-wrap items-center justify-center gap-2 px-4 py-3" onClick={(e) => e.stopPropagation()}>
@@ -331,7 +331,7 @@ export function SpielerSuche({ gewaehlt, angaben, aufAendern, t }: {
       ))}
       <span className="relative">
         <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Add player …')}
-          className="w-44 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white outline-none focus:border-sky-500" />
+          className="w-44 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white outline-none focus:border-akz" />
         {treffer.length > 0 && (
           <span className="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-lg border border-white/15 bg-black/40 shadow-xl">
             {treffer.filter((x) => !gewaehlt.includes(x.epicId)).map((x) => (
@@ -398,7 +398,7 @@ export function CupWahl({ wert, aufAendern, t, klasse }: {
   return (
     <span className={`relative inline-flex items-center gap-1.5 ${klasse ?? ''}`}>
       {gewaehlt ? (
-        <span className="flex items-center gap-1 rounded-lg border border-sky-500/50 bg-sky-500/10 py-1 pl-2.5 pr-1 text-xs font-semibold text-sky-300">
+        <span className="flex items-center gap-1 rounded-lg border border-akz/50 bg-akz/10 py-1 pl-2.5 pr-1 text-xs font-semibold text-akz">
           {gewaehlt.titel}{gewaehlt.jahr ? ` · ${gewaehlt.jahr}` : ''}
           <button onClick={() => aufAendern('')} title={t('Entfernen')} className="ml-1 rounded-full px-1 text-white/40 hover:text-red-400">✕</button>
         </span>
@@ -410,7 +410,7 @@ export function CupWahl({ wert, aufAendern, t, klasse }: {
       ) : (
         <input value={suche} onFocus={() => setOffen(true)} onBlur={() => setTimeout(() => setOffen(false), 150)}
           onChange={(e) => { setSuche(e.target.value); setOffen(true); }} placeholder={t('Search cup …')}
-          className="w-56 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white outline-none focus:border-sky-500" />
+          className="w-56 rounded-lg border border-white/10 bg-white/[0.04] px-2.5 py-1 text-xs text-white outline-none focus:border-akz" />
       )}
       {offen && !wert && treffer.length > 0 && (
         <span className="absolute left-0 top-full z-20 mt-1 max-h-72 w-80 overflow-y-auto rounded-lg border border-white/15 bg-black/40 shadow-xl">

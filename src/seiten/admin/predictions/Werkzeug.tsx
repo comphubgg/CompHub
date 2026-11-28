@@ -1980,7 +1980,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
               : <T>Pick an upcoming big final — the field comes from Epic's qualification.</T>}
             rechts={cupId ? (
               <button onClick={zielAbwaehlen}
-                className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/70 transition hover:border-sky-500 hover:text-sky-400">
+                className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/70 transition hover:border-akz hover:text-akz">
                 ← <T>Pick another event</T>
               </button>
             ) : undefined} />
@@ -1999,7 +1999,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
           {cupId && !globals && (
             <button onClick={zielAbwaehlen}
               className="rounded-lg border border-white/15 px-3 py-1.5 text-xs text-white/70
-                         transition hover:border-sky-500 hover:text-sky-400">
+                         transition hover:border-akz hover:text-akz">
               ← <T>Pick another event</T>
             </button>
           )}
@@ -2031,7 +2031,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
           <div className="mb-4 inline-flex rounded-full border border-white/10 p-0.5 text-xs font-semibold">
             {(['kommend', 'vergangen'] as const).map((z) => (
               <button key={z} type="button" onClick={() => setZeit(z)}
-                className={`rounded-full px-4 py-1.5 transition ${zeit === z ? 'bg-sky-500 text-white' : 'text-white/55 hover:text-white/85'}`}>
+                className={`rounded-full px-4 py-1.5 transition ${zeit === z ? 'bg-akz text-[#04050a]' : 'text-white/55 hover:text-white/85'}`}>
                 {z === 'kommend' ? <T>Upcoming finals</T> : <T>Past finals</T>}
               </button>
             ))}
@@ -2068,7 +2068,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                         <img src={c.bild} alt="" loading="lazy" className="h-full w-full object-cover" />
                       ) : (
                         <div className="flex h-full w-full items-center justify-center
-                                        bg-gradient-to-br from-sky-700 to-sky-950 px-4">
+                                        bg-gradient-to-br from-akz to-akz/30 px-4">
                           <span className="text-center text-sm font-bold uppercase tracking-wide text-white/80">
                             {c.titel}
                           </span>
@@ -2080,7 +2080,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                           <span className="rounded bg-rose-600 px-2 py-0.5 text-[10px] font-bold
                                            uppercase tracking-wider text-white">Live</span>
                         ) : (
-                          <span className="rounded bg-sky-500/90 px-2 py-0.5 text-[10px] font-bold
+                          <span className="rounded bg-akz/90 px-2 py-0.5 text-[10px] font-bold
                                            uppercase tracking-wider text-white">
                             {tag(liste[0].begin)}
                           </span>
@@ -2105,7 +2105,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                             onClick={() => zielWaehlen(fin)}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs
                                        transition hover:bg-white/[0.06]">
-                            <span className="w-10 shrink-0 font-semibold text-sky-400">
+                            <span className="w-10 shrink-0 font-semibold text-akz">
                               {c.global ? '' : fin.region}
                             </span>
                             <span className="min-w-0 flex-1">
@@ -2150,7 +2150,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
               {gespeicherte.map((p) => (
                 <button key={p.id} onClick={() => laden(p)}
                   className="rounded-lg border border-white/10 px-3 py-1.5 text-left text-[11px]
-                             text-white/70 transition hover:border-sky-500">
+                             text-white/70 transition hover:border-akz">
                   {p.titel}
                   {p.ziel && <span className="ml-1.5 text-white/40">{tag(p.ziel.begin)}</span>}
                 </button>
@@ -2197,7 +2197,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 <input value={titel} onChange={(e) => setTitel(e.target.value)}
                   title={uebs('Title')}
                   className="w-full max-w-xl bg-transparent text-base font-semibold text-white
-                             outline-none focus:text-sky-300" />
+                             outline-none focus:text-akz" />
                 <p className="truncate text-xs text-white/40">
                   {ziel && <>{tag(ziel.begin)} · </>}
                   {quellen.length
@@ -2220,7 +2220,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 <button onClick={() => feldLaden(ziel, true)} disabled={laedt}
                   title={uebs('Fetch the field from Epic again')}
                   className="rounded-lg border border-white/15 px-3 py-2 text-xs text-white/70
-                             transition hover:border-sky-500 disabled:opacity-40">
+                             transition hover:border-akz disabled:opacity-40">
                   {laedt ? uebs('loading…') : uebs('Reload field')}
                 </button>
               )}
@@ -2230,8 +2230,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 </span>
               ) : (
                 <button onClick={speichern} disabled={!cup || !feld.length}
-                  className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white
-                             transition hover:bg-sky-400 disabled:opacity-40">
+                  className="rounded-lg bg-akz px-4 py-2 text-sm font-medium text-[#04050a]
+                             transition hover:brightness-110 disabled:opacity-40">
                   <T>Speichern</T>
                 </button>
               )}
@@ -2323,7 +2323,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 ) : (
                   <select value={bildId} onChange={(e) => { setBildVonHand(true); setBildId(e.target.value); }}
                     className="rounded-lg border border-white/10 bg-black/40 px-2 py-1
-                               text-[11px] text-white/85 outline-none focus:border-sky-500">
+                               text-[11px] text-white/85 outline-none focus:border-akz">
                     <option value="">Battle Royale</option>
                     {bilder.map((b) => (
                       <option key={b.id} value={b.id}>{b.titel}</option>
@@ -2346,7 +2346,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                       onChange={(e) => void inselZuordnen(inselJetzt.schluessel as string, e.target.value)}
                       title={uebs('Which map image belongs to this island')}
                       className="rounded-md border border-white/10 bg-white/[0.035] backdrop-blur-xl px-1.5 py-0.5
-                                 text-[11px] text-white/85 outline-none focus:border-sky-500">
+                                 text-[11px] text-white/85 outline-none focus:border-akz">
                       <option value="">{uebs('Assign image …')}</option>
                       {bilder.map((b) => (
                         <option key={b.id} value={b.id}>{b.titel}</option>
@@ -2410,7 +2410,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                     </div>
                     <button onClick={() => void vonNobleHolen()} disabled={nobleLaeuft || !ziel}
                       title={uebs('Fetch shapes and players of this final from Noble - replaces the shapes of this map')}
-                      className="inline-flex items-center gap-1 rounded-lg border border-sky-600 px-2 py-1 text-[11px] text-sky-300 hover:bg-sky-950/40 disabled:opacity-40">
+                      className="inline-flex items-center gap-1 rounded-lg border border-akz px-2 py-1 text-[11px] text-akz hover:bg-akz/40 disabled:opacity-40">
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={nobleLaeuft ? 'animate-spin' : ''}><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v6h-6" /></svg>
                       {nobleLaeuft ? uebs('loading …') : 'Noble'}
                     </button>
@@ -2434,7 +2434,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 {globalsKarte && (
                   <a href={`/maps?id=${encodeURIComponent(globalsKarte.id)}`}
                     className="rounded-lg border border-white/15 px-2 py-1 text-[11px]
-                               text-white/70 hover:border-sky-500 hover:text-sky-300">
+                               text-white/70 hover:border-akz hover:text-akz">
                     <T>Open in the map tool</T>
                   </a>
                 )}
@@ -2466,7 +2466,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                       || 'Battle Royale'}`}
                     className={`rounded-lg border px-2.5 py-1 text-[11px] transition ${
                       i === karteNr
-                        ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                        ? 'border-akz bg-akz/10 text-akz'
                         : 'border-white/10 text-white/55 hover:border-white/25'}`}>
                     {(i === karteNr ? kartenName : k.titel) || `Map ${i + 1}`}
                   </button>
@@ -2474,8 +2474,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
               <button onClick={karteAnlegen}
                 title={uebs('Another map for the same match day — same order')}
                 className="rounded-lg border border-dashed border-white/15 px-2.5 py-1
-                           text-[11px] text-white/40 transition hover:border-sky-500
-                           hover:text-sky-400">
+                           text-[11px] text-white/40 transition hover:border-akz
+                           hover:text-akz">
                 + <T>Karte</T>
               </button>
               {/* Gibt es zu diesem Cup schon eine Turnierkarte, sind ihre
@@ -2485,9 +2485,9 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 <div className="relative">
                   <button onClick={() => setTurnierListeOffen((v) => !v)}
                     title={uebs('Take shapes from an existing tournament map')}
-                    className="rounded-lg border border-dashed border-sky-800 px-2.5 py-1
-                               text-[11px] text-sky-500 transition hover:border-sky-500
-                               hover:text-sky-400">
+                    className="rounded-lg border border-dashed border-akz/30 px-2.5 py-1
+                               text-[11px] text-akz transition hover:border-akz
+                               hover:text-akz">
                     ↳ <T>from tournament map</T>
                   </button>
                   {turnierListeOffen && (
@@ -2641,7 +2641,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 title={vollbildKarte ? uebs('Close') : uebs('Fullscreen')}
                 aria-label={vollbildKarte ? uebs('Close') : uebs('Fullscreen')}
                 className={`flex h-9 w-9 items-center justify-center rounded-lg border transition ${vollbildKarte
-                  ? 'border-sky-500 bg-sky-500 text-white'
+                  ? 'border-akz bg-akz text-[#04050a]'
                   : 'border-white/15 bg-white/[0.04] text-white/70 hover:border-white/30 hover:text-white'}`}>
                 <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor"
                   strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -2860,15 +2860,15 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 <button onClick={() => setVollbildListe((v) => !v)}
                   className={`rounded-lg border px-2 py-1 text-[11px] transition ${
                     vollbildListe
-                      ? 'border-white/15 text-white/70 hover:border-sky-500'
-                      : 'border-sky-500/60 text-sky-300 hover:bg-sky-500/10'}`}>
+                      ? 'border-white/15 text-white/70 hover:border-akz'
+                      : 'border-akz/60 text-akz hover:bg-akz/10'}`}>
                   {vollbildListe ? `✕ ${uebs('Close')}` : 'Predictions'}
                 </button>
                 {/* Karte und alle Plaetze in einem Bild - zum Posten. */}
                 <button onClick={alsSchnappschuss} disabled={!plaetze.length}
                   title={uebs('Save map and ranking as one image')}
                   className="rounded-lg border border-white/15 px-2 py-1 text-[11px]
-                             text-white/70 transition hover:border-sky-500
+                             text-white/70 transition hover:border-akz
                              disabled:opacity-40">
                   📷 {uebs('Screenshot')}
                 </button>
@@ -3019,7 +3019,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                     placeholder={uebs('Search player …')} type="text"
                     className="w-full rounded-lg border border-white/15 bg-black/40 py-2 pl-3
                                pr-8 text-[13px] text-white outline-none
-                               placeholder:text-white/30 focus:border-sky-500" />
+                               placeholder:text-white/30 focus:border-akz" />
                   {suche && (
                     <button onClick={() => setSuche('')} title={uebs('Clear search')}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-white/40
@@ -3069,7 +3069,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                       + 'click for the next free one'}
                     className="flex w-full items-center gap-2.5 rounded-lg border
                                border-white/10 px-2.5 py-2 text-left text-[13px]
-                               transition hover:border-sky-500 hover:bg-sky-950/20">
+                               transition hover:border-akz hover:bg-akz/20">
                     <TeamFlagge laender={t.namen.map(
                       (n, k) => findeProfil(n, t.ids[k])?.land)} />
                     <span className="flex min-w-0 flex-1 flex-col leading-tight">
@@ -3080,8 +3080,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                       ))}
                     </span>
                     {/* Die Region als kleine Marke, wie im Vorbild. */}
-                    <span className="shrink-0 rounded border border-sky-500/40 px-1 py-px
-                                     text-[9px] font-semibold uppercase text-sky-300">
+                    <span className="shrink-0 rounded border border-akz/40 px-1 py-px
+                                     text-[9px] font-semibold uppercase text-akz">
                       {t.region || '?'}
                     </span>
                     {!eigen && (
@@ -3119,7 +3119,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                             className="flex items-center gap-2.5 rounded-lg border border-white/10
                                        px-2.5 py-2 text-[13px] opacity-70">
                             <span className="w-9 shrink-0 text-[11px] font-bold tabular-nums
-                                             text-sky-300">{ordnung(i + 1)}</span>
+                                             text-akz">{ordnung(i + 1)}</span>
                             <TeamFlagge laender={t.namen.map(
                               (n, k) => findeProfil(n, t.ids[k])?.land)} />
                             <span className="flex min-w-0 flex-1 flex-col leading-tight">
@@ -3198,7 +3198,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                         <div className="flex items-center gap-1.5">
                           <button onClick={() => laden(p)}
                             className="min-w-0 flex-1 truncate text-left text-xs
-                                       text-white/70 hover:text-sky-400">
+                                       text-white/70 hover:text-akz">
                             {p.titel}
                             <span className="ml-1.5 text-[10px] text-white/40">
                               {p.cupTitel}{p.gruppe ? ` · ${p.gruppe}` : ''}
@@ -3361,7 +3361,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                           onClick={() => setEntwurf((a) => a.map((v, i) =>
                             (i === k ? f.toUpperCase() : v)))}
                           className={`rounded-full p-0.5 transition ${gesetzt === f
-                            ? 'ring-2 ring-amber-400' : 'ring-1 ring-white/10 hover:ring-sky-500'}`}>
+                            ? 'ring-2 ring-amber-400' : 'ring-1 ring-white/10 hover:ring-akz'}`}>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={`/flags/${f}.png`} alt={f}
                             className="h-6 w-6 rounded-full object-cover" />

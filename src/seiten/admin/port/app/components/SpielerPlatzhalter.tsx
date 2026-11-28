@@ -32,7 +32,7 @@ export default function SpielerPlatzhalter({ name = '' }: { name?: string }) {
   return (
     <span aria-hidden className={`absolute inset-0 flex items-center justify-center bg-gradient-to-br ${tonVon(name)}`}>
       <span className={`absolute inset-0 ${SCHEIN}`} />
-      <Zeichen klasse="relative h-3/5 w-3/5 translate-y-[12%] text-sky-400/25" />
+      <Zeichen klasse="relative h-3/5 w-3/5 translate-y-[12%] text-akz/25" />
     </span>
   );
 }
@@ -42,7 +42,7 @@ export function PlatzhalterRund({ name = '', groesse = 28, eckig = false, classN
     <span aria-hidden style={{ width: groesse, height: groesse }}
       className={`relative inline-flex shrink-0 items-center justify-center overflow-hidden bg-gradient-to-br ${tonVon(name)} ${eckig ? 'rounded-lg' : 'rounded-full'} ${className}`}>
       <span className={`absolute inset-0 ${SCHEIN}`} />
-      <Zeichen klasse="relative h-3/5 w-3/5 translate-y-[8%] text-sky-400/25" />
+      <Zeichen klasse="relative h-3/5 w-3/5 translate-y-[8%] text-akz/25" />
     </span>
   );
 }

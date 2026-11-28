@@ -36,7 +36,7 @@ function Feld({ wert, aufAendern, platzhalter, klasse, typ }: {
       onBlur={() => { if (inhalt !== wert) aufAendern(inhalt); }}
       onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
       className={`rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white
-                  outline-none focus:border-sky-500 ${klasse ?? ''}`} />
+                  outline-none focus:border-akz ${klasse ?? ''}`} />
   );
 }
 
@@ -203,7 +203,7 @@ export default function ArchivVerwaltung() {
       <SeitenKopf className="mb-5" marke={<T>Spielerprofil</T>} titel={<T>Maintain archive</T>}
         text={<T>Photos and videos for events and players. Everything shows in the player archive tab of the profile; every input saves itself.</T>}
         rechts={
-          <Link href="/statistics" className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/70 transition hover:border-sky-500 hover:text-sky-400">
+          <Link href="/statistics" className="rounded-full border border-white/15 px-4 py-2 text-xs font-bold text-white/70 transition hover:border-akz hover:text-akz">
             <T>To the profiles</T> ↗
           </Link>
         } />
@@ -217,7 +217,7 @@ export default function ArchivVerwaltung() {
           <div className="space-y-2">
             <button onClick={() => setEventId('allgemein')}
               className={`w-full rounded-xl border p-3 text-left transition ${
-                allgemein ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 bg-black/30 hover:border-white/25'}`}>
+                allgemein ? 'border-akz bg-akz/10' : 'border-white/10 bg-black/30 hover:border-white/25'}`}>
               <span className="block text-sm font-bold text-white"><T>General archive</T></span>
               <span className="block text-[11px] text-white/40"><T>Images of a player without an event</T></span>
               <span className="block text-[11px] text-white/30">
@@ -227,7 +227,7 @@ export default function ArchivVerwaltung() {
             {events.map((ev) => (
               <button key={ev.id} onClick={() => setEventId(ev.id)}
                 className={`w-full rounded-xl border p-3 text-left transition ${
-                  ev.id === eventId ? 'border-sky-500 bg-sky-500/10' : 'border-white/10 bg-black/30 hover:border-white/25'}`}>
+                  ev.id === eventId ? 'border-akz bg-akz/10' : 'border-white/10 bg-black/30 hover:border-white/25'}`}>
                 <span className="block truncate text-sm font-bold text-white">{ev.name}</span>
                 <span className="block truncate text-[11px] text-white/40">{[ev.ort, ev.datum].filter(Boolean).join(' · ')}</span>
                 <span className="block text-[11px] text-white/30">
@@ -237,34 +237,34 @@ export default function ArchivVerwaltung() {
             ))}
           </div>
           <button onClick={() => setNeuOffen((o) => !o)}
-            className="mt-3 w-full rounded-xl border border-dashed border-white/15 px-3 py-2.5 text-sm text-white/55 transition hover:border-sky-500 hover:text-sky-400">
+            className="mt-3 w-full rounded-xl border border-dashed border-white/15 px-3 py-2.5 text-sm text-white/55 transition hover:border-akz hover:text-akz">
             + <T>New event</T>
           </button>
           {neuOffen && (
             <div className="mt-2 space-y-2 rounded-xl border border-white/10 bg-black/30 p-3">
               <input value={neu.name} onChange={(e) => setNeu({ ...neu, name: e.target.value })} placeholder={t('Name, e.g. FNCS Global Championship 2025')}
-                className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-sky-500" />
+                className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-akz" />
               <input value={neu.ort} onChange={(e) => setNeu({ ...neu, ort: e.target.value })} placeholder={t('Place, e.g. Lyon')}
-                className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-sky-500" />
+                className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-akz" />
               <div className="flex items-center gap-2">
                 <span className="w-8 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"><T>Von</T></span>
                 <input type="date" value={neu.datum} onChange={(e) => setNeu({ ...neu, datum: e.target.value })}
-                  className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-sky-500" />
+                  className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-akz" />
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-8 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"><T>bis</T></span>
                 <input type="date" value={neu.bis} min={neu.datum || undefined} onChange={(e) => setNeu({ ...neu, bis: e.target.value })}
                   title={t('Until (optional)')}
-                  className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-sky-500" />
+                  className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-akz" />
               </div>
               <div>
                 <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"><T>Cup on the site</T></p>
                 <CupWahl wert={neu.cupId} aufAendern={(cupId) => setNeu({ ...neu, cupId })} t={t} />
               </div>
               <textarea value={neu.beschreibung} onChange={(e) => setNeu({ ...neu, beschreibung: e.target.value })} placeholder={t('Description (optional)')} rows={2}
-                className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-sky-500" />
+                className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-akz" />
               <button onClick={eventAnlegen}
-                className="w-full rounded-lg border border-sky-500 bg-sky-500/10 px-3 py-1.5 text-sm font-semibold text-sky-400 transition hover:bg-sky-500/20">
+                className="w-full rounded-lg border border-akz bg-akz/10 px-3 py-1.5 text-sm font-semibold text-akz transition hover:bg-akz/20">
                 <T>Anlegen</T>
               </button>
             </div>
@@ -291,7 +291,7 @@ export default function ArchivVerwaltung() {
                   <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"><T>Cup on the site</T></span>
                   <CupWahl wert={event.cupId ?? ''} aufAendern={(cupId) => eventAendern({ cupId })} t={t} />
                   {event.cupId && (
-                    <Link href={`/events/${encodeURIComponent(event.cupId)}`} className="text-xs text-sky-400 hover:underline">
+                    <Link href={`/events/${encodeURIComponent(event.cupId)}`} className="text-xs text-akz hover:underline">
                       <T>To the cup page</T> ↗
                     </Link>
                   )}
@@ -302,7 +302,7 @@ export default function ArchivVerwaltung() {
                     <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40"><T>More cups with this archive</T></span>
                     {(event.cupIds ?? []).map((c) => (
                       <span key={c} className="flex items-center gap-1 rounded-full border border-white/15 px-2 py-0.5 text-xs text-white/70">
-                        <Link href={`/events/${encodeURIComponent(c)}`} className="hover:text-sky-400">{c}</Link>
+                        <Link href={`/events/${encodeURIComponent(c)}`} className="hover:text-akz">{c}</Link>
                         <button type="button" title={t('Entfernen')}
                           onClick={() => void eventAendern({ cupIds: (event.cupIds ?? []).filter((x) => x !== c) })}
                           className="text-white/40 hover:text-red-400">✕</button>
@@ -331,7 +331,7 @@ export default function ArchivVerwaltung() {
                     onDrop={(e) => { e.preventDefault(); setUeberZiel(false); void hochladen(e.dataTransfer.files); }}
                     onClick={() => dateiFeld.current?.click()}
                     className={`flex min-h-32 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed p-6 text-center transition ${
-                      ueberZiel ? 'border-sky-500 bg-sky-500/10' : 'border-white/15 hover:border-white/30'}`}>
+                      ueberZiel ? 'border-akz bg-akz/10' : 'border-white/15 hover:border-white/30'}`}>
                     <span className="text-2xl">📷</span>
                     <span className="text-sm font-semibold text-white/85"><T>Drag photos here or choose them</T></span>
                     <span className="text-[11px] text-white/40"><T>JPG, PNG, WebP · up to 20 MB per image · several at once</T></span>
@@ -341,18 +341,18 @@ export default function ArchivVerwaltung() {
                   <div className="flex flex-col gap-2 rounded-xl border border-white/10 p-4">
                     <span className="text-sm font-semibold text-white/85"><T>Attach video</T></span>
                     <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://youtube.com/… · twitch.tv/… · x.com/… · tiktok.com/…"
-                      className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-sky-500" />
+                      className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-akz" />
                     <input value={videoTitel} onChange={(e) => setVideoTitel(e.target.value)} placeholder={t('Title (optional)')}
-                      className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-sky-500" />
+                      className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-akz" />
                     <button onClick={videoAnlegen}
-                      className="rounded-lg border border-sky-500 bg-sky-500/10 px-3 py-1.5 text-sm font-semibold text-sky-400 transition hover:bg-sky-500/20">
+                      className="rounded-lg border border-akz bg-akz/10 px-3 py-1.5 text-sm font-semibold text-akz transition hover:bg-akz/20">
                       <T>Add</T>
                     </button>
                     {/* Oder die Datei selbst - ohne Umweg ueber X oder YouTube. */}
                     <button type="button" onClick={() => videoFeld.current?.click()} disabled={videoLaedt}
-                      className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-white/15 px-3 py-1.5 text-sm text-white/70 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-60">
+                      className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-white/15 px-3 py-1.5 text-sm text-white/70 transition hover:border-akz hover:text-akz disabled:opacity-60">
                       {videoLaedt
-                        ? <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/15 border-t-sky-400" /><T>Uploading video …</T></>
+                        ? <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/15 border-t-akz" /><T>Uploading video …</T></>
                         : <>🎬 <T>or upload as a file</T></>}
                     </button>
                     <span className="text-[11px] text-white/30"><T>MP4, WebM or MOV · up to 50 MB</T></span>

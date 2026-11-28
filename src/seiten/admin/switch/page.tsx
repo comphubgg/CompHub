@@ -101,7 +101,7 @@ export default function WechselnSeite() {
           placeholder={t('Namen suchen')}
           className="mt-4 w-full rounded-lg border border-white/10 bg-black/40
                      px-3 py-2 text-sm text-white outline-none
-                     placeholder:text-white/30 focus:border-sky-500" />
+                     placeholder:text-white/30 focus:border-akz" />
 
         {fehler && (
           <p className="mt-3 rounded-lg border border-rose-900/60 bg-rose-950/30
@@ -123,7 +123,7 @@ export default function WechselnSeite() {
                 disabled={!z.aktiv || laeuft === z.name}
                 className={`flex w-full items-center gap-3 rounded-xl border
                             px-4 py-3 text-left transition ${z.aktiv
-                  ? 'border-white/10 bg-white/[0.03] hover:border-sky-500'
+                  ? 'border-white/10 bg-white/[0.03] hover:border-akz'
                   : 'cursor-not-allowed border-white/5 bg-black/20 opacity-50'}`}>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold
@@ -137,7 +137,7 @@ export default function WechselnSeite() {
                     {!z.aktiv ? ` · ${t('stillgelegt')}` : ''}
                   </span>
                 </span>
-                <span className="shrink-0 text-[11px] font-medium text-sky-400">
+                <span className="shrink-0 text-[11px] font-medium text-akz">
                   {laeuft === z.name ? <T>one moment …</T> : <T>hineinsehen</T>}
                 </span>
               </button>

@@ -38,17 +38,17 @@ function Karte({ z, jetzt, neuLaden, melden, i }: { z: Zeile; jetzt: number; neu
     <motion.li initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 24) * 0.025 }}
       className={`rounded-2xl border bg-white/[0.03] p-4 backdrop-blur-xl transition hover:bg-white/[0.045] ${abgelaufen ? 'border-amber-400/40' : 'border-white/10'}`}>
       <div className="flex flex-wrap items-start gap-3">
-        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-400/30 to-sky-400/20 text-lg font-extrabold text-white">{z.name.charAt(0).toUpperCase()}</span>
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-violet-400/30 to-akz/20 text-lg font-extrabold text-white">{z.name.charAt(0).toUpperCase()}</span>
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2">
             <span className="text-base font-bold text-white">{z.name}</span>
-            <span className="rounded-full border border-sky-400/40 bg-sky-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-200">{was}</span>
+            <span className="rounded-full border border-akz/40 bg-akz/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-akz">{was}</span>
             {!z.aktiv && <span className="rounded-full border border-white/15 px-2 py-0.5 text-[10px] uppercase text-white/50">blocked</span>}
             {z.anfragen > 1 && <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-2 py-0.5 text-[10px] font-bold text-amber-200">request #{z.anfragen}</span>}
           </p>
           <p className="mt-1 text-xs text-white/45">
             {z.verwaltet && <>manages {z.verwaltet} · </>}created {z.angelegt ? datum(Date.parse(z.angelegt)) : '—'} ·{' '}
-            {z.discordId ? <a href={`https://discord.com/users/${z.discordId}`} target="_blank" rel="noreferrer" className="text-white/75 hover:text-sky-300">Discord: {z.discordName ?? z.discordId}</a>
+            {z.discordId ? <a href={`https://discord.com/users/${z.discordId}`} target="_blank" rel="noreferrer" className="text-white/75 hover:text-akz">Discord: {z.discordName ?? z.discordId}</a>
               : <span className="text-amber-300/80">not linked to Discord</span>}
           </p>
           <p className="mt-1 text-xs">
@@ -60,8 +60,8 @@ function Karte({ z, jetzt, neuLaden, melden, i }: { z: Zeile; jetzt: number; neu
         <div className="flex flex-wrap gap-2">
           <button type="button" disabled={laeuft || !z.discordId} title={z.discordId ? undefined : 'Link Discord first'} className={knopfLeise}
             onClick={async () => { const e = await schicke({ aktion: 'chat' }); melden(e.text ?? '', !!e.ok); if (e.ok && e.kanal) window.open(`https://discord.com/channels/${SERVER}/${e.kanal}`, '_blank'); }}>Open chat</button>
-          <button type="button" onClick={() => umschalten('frist')} className={offen === 'frist' ? `${knopfLeise} !border-sky-400 !text-sky-200` : knopfLeise}>Set deadline</button>
-          {!z.discordId && <button type="button" onClick={() => umschalten('verknuepfen')} className={offen === 'verknuepfen' ? `${knopfLeise} !border-sky-400 !text-sky-200` : knopfLeise}>Link Discord</button>}
+          <button type="button" onClick={() => umschalten('frist')} className={offen === 'frist' ? `${knopfLeise} !border-akz !text-akz` : knopfLeise}>Set deadline</button>
+          {!z.discordId && <button type="button" onClick={() => umschalten('verknuepfen')} className={offen === 'verknuepfen' ? `${knopfLeise} !border-akz !text-akz` : knopfLeise}>Link Discord</button>}
           <button type="button" onClick={() => umschalten('loeschen')} className={knopfGefahr}>Delete</button>
         </div>
       </div>

@@ -11,7 +11,7 @@ import { Laedt, NurAdmins, WerkzeugKopf, feld, knopfHaupt, knopfLeise, wann } fr
  */
 interface Meldung { id: string; zeit: number; thema: string; eigenesThema: string; text: string; bilder: string[]; vonId: string; vonName: string; vonEmail: string; erledigt: boolean; notiz: string }
 const FARBE: Record<string, string> = {
-  support: 'border-sky-400/40 bg-sky-400/10 text-sky-300', report: 'border-rose-400/40 bg-rose-400/10 text-rose-300',
+  support: 'border-akz/40 bg-akz/10 text-akz', report: 'border-rose-400/40 bg-rose-400/10 text-rose-300',
   feedback: 'border-violet-400/40 bg-violet-400/10 text-violet-300', hilfe: 'border-amber-400/40 bg-amber-400/10 text-amber-300',
   idee: 'border-emerald-400/40 bg-emerald-400/10 text-emerald-300', anderes: 'border-white/15 bg-white/5 text-white/60',
 };
@@ -67,7 +67,7 @@ export default function Kontakt({ klassisch }: { klassisch: () => void }) {
 
   const karte = (m: Meldung, i: number) => (
     <motion.article key={m.id} id={`meldung-${m.id}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: m.erledigt ? 0.6 : 1, y: 0 }} transition={{ delay: Math.min(i, 20) * 0.03 }}
-      className={`rounded-2xl border bg-white/[0.03] p-5 backdrop-blur-xl ${m.id === ziel ? 'border-sky-400 ring-1 ring-sky-400/40' : 'border-white/10'}`}>
+      className={`rounded-2xl border bg-white/[0.03] p-5 backdrop-blur-xl ${m.id === ziel ? 'border-akz ring-1 ring-akz/40' : 'border-white/10'}`}>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${FARBE[m.thema] ?? FARBE.anderes}`}>{THEMA[m.thema] ?? m.thema}</span>
         {m.eigenesThema && <span className="text-sm font-semibold text-white">{m.eigenesThema}</span>}
@@ -76,12 +76,12 @@ export default function Kontakt({ klassisch }: { klassisch: () => void }) {
       <p className="mb-3 whitespace-pre-wrap text-sm leading-relaxed text-white/80">{m.text}</p>
       {m.bilder.length > 0 && (
         <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {m.bilder.map((b) => <button key={b} type="button" onClick={() => setGross(b)} className="overflow-hidden rounded-xl border border-white/10 transition hover:border-sky-400"><img src={bildUrl(b)} alt="" className="aspect-video w-full object-cover" /></button>)}
+          {m.bilder.map((b) => <button key={b} type="button" onClick={() => setGross(b)} className="overflow-hidden rounded-xl border border-white/10 transition hover:border-akz"><img src={bildUrl(b)} alt="" className="aspect-video w-full object-cover" /></button>)}
         </div>
       )}
       <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-white/45">
         <span>from <span className="text-white/80">{m.vonName || '—'}</span></span>
-        {m.vonEmail && <a href={`mailto:${m.vonEmail}`} className="text-sky-300 hover:text-sky-200">{m.vonEmail}</a>}
+        {m.vonEmail && <a href={`mailto:${m.vonEmail}`} className="text-akz hover:text-akz">{m.vonEmail}</a>}
       </div>
       <input defaultValue={m.notiz} onBlur={(e) => { if (e.target.value !== m.notiz) void patch({ id: m.id, notiz: e.target.value }); }} placeholder="Note for yourself" className={`${feld} mb-3 w-full py-1.5 text-xs`} />
       {m.vonEmail && !m.erledigt && (
@@ -108,7 +108,7 @@ export default function Kontakt({ klassisch }: { klassisch: () => void }) {
           {offene.length > 0 && <div className="grid gap-3 2xl:grid-cols-2">{offene.map(karte)}</div>}
           {erledigte.length > 0 && (
             <div className="mt-8">
-              <button type="button" onClick={() => setZeigeErledigte((v) => !v)} className="mb-3 text-xs text-white/50 transition hover:text-sky-300">{zeigeErledigte ? '▾ ' : '▸ '}{erledigte.length} done</button>
+              <button type="button" onClick={() => setZeigeErledigte((v) => !v)} className="mb-3 text-xs text-white/50 transition hover:text-akz">{zeigeErledigte ? '▾ ' : '▸ '}{erledigte.length} done</button>
               {zeigeErledigte && <div className="grid gap-3 2xl:grid-cols-2">{erledigte.map(karte)}</div>}
             </div>
           )}

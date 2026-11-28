@@ -842,11 +842,11 @@ function Schritt({ nr, titel, hinweis, children }: {
   nr: number; titel: string; hinweis?: string; children: React.ReactNode;
 }) {
   return (
-    <section className="mb-4 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-5">
+    <section className="mb-4 fl !rounded-2xl p-5">
       <div className="mb-4 flex flex-wrap items-center gap-2.5">
         <span className="flex h-7 w-7 shrink-0 items-center justify-center
-                         rounded-full bg-sky-500 text-xs font-bold
-                         text-white">
+                         rounded-full bg-akz text-xs font-bold
+                         text-[#04050a]">
           {nr}
         </span>
         <h2 className="text-base font-bold text-white">{titel}</h2>
@@ -3533,7 +3533,7 @@ export default function TweetSeite() {
             <button onClick={() => setBefehleOffen(true)}
               title={t('Alles, was das Kurzbefehl-Feld versteht')}
               className="shrink-0 rounded-full border border-white/15 px-4 py-2 text-xs font-bold
-                         text-white/70 transition hover:border-sky-500 hover:text-sky-400">
+                         text-white/70 transition hover:border-akz hover:text-akz">
                ⌘ Commands <span className="ml-1.5 rounded-full bg-white/[0.07] px-1.5 py-0.5
                                text-[10px] font-semibold text-white/55">
                 {befehlsZahl}
@@ -3543,7 +3543,7 @@ export default function TweetSeite() {
 
         {/* ------------------------------------------ Stat-Posts
             Ganz oben. Cup und Spieltag teilen sich den Zustand mit Schritt 2. */}
-        <section className="mb-5 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl">
+        <section className="mb-5 overflow-hidden fl !rounded-2xl">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-white/10 px-5 py-3">
             <h2 className="text-sm font-bold text-white"><T>Stat-Posts</T></h2>
             <p className="text-[11px] text-white/40">
@@ -3556,7 +3556,7 @@ export default function TweetSeite() {
                 Cup
                 <select value={cupId}
                   onChange={(e) => { setCupId(e.target.value); setFensterId(''); setAlleSpieltage(false); }}
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-sky-500">
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-akz">
                   <option value="">{t('— auswählen —')}</option>
                   {cupGruppen.live.length > 0 && (
                     <optgroup label={t('Läuft gerade')}>
@@ -3573,7 +3573,7 @@ export default function TweetSeite() {
               <label className="text-xs text-white/55">
                 <T>Spieltag</T>
                 <select value={fensterId} onChange={(e) => setFensterId(e.target.value)} disabled={!spieltage.liste.length}
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-sky-500 disabled:opacity-40">
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none focus:border-akz disabled:opacity-40">
                   <option value="">{t('— auswählen —')}</option>
                   {[...new Set(spieltage.liste.map((f) => f.region))].map((r) => {
                     const runden = spieltage.liste.filter((f) => f.region === r);
@@ -3591,7 +3591,7 @@ export default function TweetSeite() {
                 </select>
                 {spieltage.mehr > 0 && (
                   <button type="button" onClick={() => setAlleSpieltage(true)}
-                    className="mt-1 text-[11px] text-white/40 underline decoration-dotted underline-offset-2 hover:text-sky-400">
+                    className="mt-1 text-[11px] text-white/40 underline decoration-dotted underline-offset-2 hover:text-akz">
                     {spieltage.mehr} <T>ältere Spieltage anzeigen</T>
                   </button>
                 )}
@@ -3601,11 +3601,11 @@ export default function TweetSeite() {
                 <input value={ftTitelText} disabled={!aktuellesFenster}
                   onChange={(e) => setFtTitel({ windowId: fensterId, text: e.target.value })}
                   spellCheck={false}
-                  className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-sky-500 disabled:opacity-40" />
+                  className="mt-1 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-akz disabled:opacity-40" />
               </label>
               <div className="flex gap-2">
                 <button type="button" onClick={() => ftErstellen()} disabled={!aktuellesFenster || ftLaedt}
-                  className="h-[38px] rounded-lg bg-sky-500 px-5 text-sm font-medium text-white transition hover:bg-sky-400 disabled:opacity-40">
+                  className="h-[38px] rounded-lg bg-akz px-5 text-sm font-medium text-[#04050a] transition hover:brightness-110 disabled:opacity-40">
                   {t(ftLaedt ? 'loading…' : 'Create')}
                 </button>
                 <button type="button" onClick={() => ftErstellen(true)} disabled={!aktuellesFenster || ftLaedt}
@@ -3655,7 +3655,7 @@ export default function TweetSeite() {
                           <span className="flex items-center gap-2 text-xs font-semibold text-white/70">
                             {p.titel}
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${p.quelle === 'epic'
-                              ? 'bg-amber-500/15 text-amber-300' : 'bg-sky-500/15 text-sky-300'}`}>
+                              ? 'bg-amber-500/15 text-amber-300' : 'bg-akz/15 text-akz'}`}>
                               {t(p.quelle === 'epic' ? 'Instant from Epic' : 'From replays')}
                             </span>
                           </span>
@@ -3674,7 +3674,7 @@ export default function TweetSeite() {
                         <div className="border-t border-white/10 px-4 py-2">
                           <button type="button" onClick={() => ftKopieren(p.art, p.text)}
                             className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${ftKopiert === p.art
-                              ? 'border-emerald-500 text-emerald-400' : 'border-white/15 text-white/70 hover:border-sky-500 hover:text-sky-400'}`}>
+                              ? 'border-emerald-500 text-emerald-400' : 'border-white/15 text-white/70 hover:border-akz hover:text-akz'}`}>
                             {t(ftKopiert === p.art ? 'Copied' : 'Copy')}
                           </button>
                         </div>
@@ -3712,7 +3712,7 @@ export default function TweetSeite() {
                               transition disabled:cursor-not-allowed
                               disabled:opacity-40 ${
                     vorlage === v.wert
-                      ? 'border-sky-500 bg-sky-500 text-white'
+                      ? 'border-akz bg-akz text-[#04050a]'
                       : 'border-white/10 text-white/55 hover:border-white/15 '
                         + 'hover:text-white/85'}`}>
                   {v.titel}
@@ -3729,7 +3729,7 @@ export default function TweetSeite() {
             {([[true, 'With X handle'], [false, 'Name only']] as const).map(([an, titel]) => (
               <button key={String(an)} type="button" onClick={() => mitXSetzen(an)}
                 className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${mitX === an
-                  ? 'border-sky-500 bg-sky-500 text-white' : 'border-white/10 text-white/55 hover:border-white/15 hover:text-white/85'}`}>
+                  ? 'border-akz bg-akz text-[#04050a]' : 'border-white/10 text-white/55 hover:border-white/15 hover:text-white/85'}`}>
                 <T>{titel}</T>
               </button>
             ))}
@@ -3751,7 +3751,7 @@ export default function TweetSeite() {
                 spellCheck={false}
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/40
                            px-3 py-1.5 text-xs text-white outline-none
-                           placeholder:text-white/30 focus:border-sky-500" />
+                           placeholder:text-white/30 focus:border-akz" />
               <select value={cupId}
                 onChange={(e) => {
                   setCupId(e.target.value); setFensterId('');
@@ -3759,7 +3759,7 @@ export default function TweetSeite() {
                 }}
                 className="mt-1.5 w-full rounded-lg border border-white/10 bg-black/40
                            px-3 py-2 text-sm text-white outline-none
-                           focus:border-sky-500">
+                           focus:border-akz">
                 <option value="">{t('— auswählen —')}</option>
                 {cupGruppen.live.length > 0 && (
                   <optgroup label={t('Läuft gerade')}>
@@ -3803,7 +3803,7 @@ export default function TweetSeite() {
                 disabled={!fenster.length}
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/40
                            px-3 py-2 text-sm text-white outline-none
-                           focus:border-sky-500 disabled:opacity-40">
+                           focus:border-akz disabled:opacity-40">
                 <option value="">{t('— auswählen —')}</option>
                 {[...new Set(spieltage.liste.map((f) => f.region))].map((r) => (
                   <option key={r} value={r}>
@@ -3820,7 +3820,7 @@ export default function TweetSeite() {
                   <select value={fensterId} onChange={(e) => setFensterId(e.target.value)}
                     className="mt-1 w-full rounded-lg border border-white/10 bg-black/40
                                px-3 py-2 text-sm text-white outline-none
-                               focus:border-sky-500">
+                               focus:border-akz">
                     {runden.map((f) => (
                       <option key={f.windowId} value={f.windowId}>
                         {f.status === 'live' ? '🔴 ' : ''}{namen.get(f.windowId) || t('Runde')}
@@ -3833,7 +3833,7 @@ export default function TweetSeite() {
                 <button type="button" onClick={() => setAlleSpieltage(true)}
                   className="mt-1 text-[11px] text-white/40 underline
                              decoration-dotted underline-offset-2
-                             hover:text-sky-400">
+                             hover:text-akz">
                   {spieltage.mehr} <T>ältere Spieltage anzeigen</T>
                 </button>
               )}
@@ -3857,14 +3857,14 @@ export default function TweetSeite() {
                 }}
                 className="mt-1 w-full rounded-lg border border-white/10 bg-black/40
                            px-3 py-2 text-sm text-white outline-none
-                           focus:border-sky-500" />
+                           focus:border-akz" />
               <span className="mt-1 block text-[11px] text-white/30">1–50</span>
             </label>
 
             <button onClick={laden} disabled={!fensterId || laedt}
-              className="mt-1 h-[38px] self-start rounded-lg bg-sky-500 px-4
-                         text-sm font-medium text-white transition
-                         hover:bg-sky-400 disabled:opacity-40 sm:mt-5">
+              className="mt-1 h-[38px] self-start rounded-lg bg-akz px-4
+                         text-sm font-medium text-[#04050a] transition
+                         hover:brightness-110 disabled:opacity-40 sm:mt-5">
               {t(laedt ? 'loading…' : 'Load data')}
             </button>
           </div>
@@ -3959,9 +3959,9 @@ export default function TweetSeite() {
             placeholder="top 5 · damage · elims 10 · mats · shxrk"
             className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2
                        font-mono text-sm text-white outline-none
-                       focus:border-sky-500" />
+                       focus:border-akz" />
           {befehlEcho && (
-            <span className="mt-1 block text-[11px] text-sky-400">{befehlEcho}</span>
+            <span className="mt-1 block text-[11px] text-akz">{befehlEcho}</span>
           )}
           {/* Was das Feld versteht. Ohne diese Zeile muss man raten. */}
           <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px]
@@ -3970,7 +3970,7 @@ export default function TweetSeite() {
               <button key={b.beispiel} type="button" title={b.erklaerung}
                 onClick={() => setBefehl(b.beispiel)}
                 className="font-mono text-white/40 underline decoration-dotted
-                           underline-offset-2 hover:text-sky-400">
+                           underline-offset-2 hover:text-akz">
                 {b.beispiel}
               </button>
             ))}
@@ -3997,7 +3997,7 @@ export default function TweetSeite() {
                   <button onClick={() => setEbene('team')}
                     title={t('Werte je Team, direkt von Epic')}
                     className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                      ebene === 'team' ? 'bg-sky-500 text-white'
+                      ebene === 'team' ? 'bg-akz text-[#04050a]'
                                        : 'text-white/55 hover:text-white/85'}`}>
                     Team Stats
                   </button>
@@ -4007,7 +4007,7 @@ export default function TweetSeite() {
                       ? 'Values per single player'
                       : 'No per-player values exist for this match day'}
                     className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                      ebene === 'spieler' ? 'bg-sky-500 text-white'
+                      ebene === 'spieler' ? 'bg-akz text-[#04050a]'
                                           : 'text-white/55 hover:text-white/85'
                     } disabled:cursor-not-allowed disabled:opacity-40`}>
                     Player Stats
@@ -4060,12 +4060,12 @@ export default function TweetSeite() {
                     spellCheck={false}
                     className="w-full rounded-lg border border-white/10 bg-black/40
                                px-3 py-2 text-sm text-white outline-none
-                               placeholder:text-white/30 focus:border-sky-500" />
+                               placeholder:text-white/30 focus:border-akz" />
 
                   <label className="mt-3 flex items-center gap-2 text-xs text-white/55">
                     <input type="checkbox" checked={eigeneNummern}
                       onChange={(e) => setEigeneNummern(e.target.checked)}
-                      className="accent-sky-500" />
+                      className="accent-akz" />
                     <T>Nummeriert (1., 2., 3.) — sonst Punkte</T>
                   </label>
 
@@ -4092,7 +4092,7 @@ export default function TweetSeite() {
                           className="flex items-center gap-2 rounded-lg border
                                      border-white/5 bg-black/30 px-2.5 py-1.5">
                           <span className="w-5 shrink-0 text-right text-[11px]
-                                           font-bold tabular-nums text-sky-400">
+                                           font-bold tabular-nums text-akz">
                             {i + 1}
                           </span>
                           <Flagge land={sp.land ?? undefined} groesse={14} />
@@ -4116,7 +4116,7 @@ export default function TweetSeite() {
                               return n;
                             })}
                             className="shrink-0 px-1 text-white/30 transition
-                                       hover:text-sky-400 disabled:opacity-20"
+                                       hover:text-akz disabled:opacity-20"
                             title={t('nach oben')}>↑</button>
                           <button disabled={i === eigeneWahl.length - 1}
                             onClick={() => setEigeneWahl((v) => {
@@ -4125,7 +4125,7 @@ export default function TweetSeite() {
                               return n;
                             })}
                             className="shrink-0 px-1 text-white/30 transition
-                                       hover:text-sky-400 disabled:opacity-20"
+                                       hover:text-akz disabled:opacity-20"
                             title={t('nach unten')}>↓</button>
                           <button
                             onClick={() => setEigeneWahl(
@@ -4153,7 +4153,7 @@ export default function TweetSeite() {
                         className={`rounded-md border px-2 py-0.5 text-[11px]
                                     font-semibold transition ${
                           !eigeneSuche.trim() && eigeneRegion === r.code
-                            ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                            ? 'border-akz bg-akz/15 text-akz'
                             : 'border-white/10 text-white/40 hover:text-white/70'}`}>
                         {r.code}
                       </button>
@@ -4167,7 +4167,7 @@ export default function TweetSeite() {
                     className="mb-2 w-full rounded-lg border border-white/10
                                bg-black/40 px-3 py-2 text-sm text-white
                                outline-none placeholder:text-white/30
-                               focus:border-sky-500" />
+                               focus:border-akz" />
 
                   <div className="max-h-[420px] space-y-1 overflow-y-auto">
                     {eigeneListe.length ? eigeneListe.map((sp) => {
@@ -4180,7 +4180,7 @@ export default function TweetSeite() {
                               : [...v, sp]))}
                           className={`flex w-full items-center gap-2 rounded-lg
                                       border px-2.5 py-1.5 text-left transition ${drin
-                            ? 'border-sky-500/60 bg-sky-500/10'
+                            ? 'border-akz/60 bg-akz/10'
                             : 'border-white/5 bg-black/20 hover:border-white/15'}`}>
                           <Flagge land={sp.land ?? undefined} groesse={14} />
                           <span className="min-w-0 flex-1 truncate text-xs text-white/85">
@@ -4193,7 +4193,7 @@ export default function TweetSeite() {
                                          border-white/10 object-cover object-top" />
                           )}
                           <span className={`shrink-0 text-sm ${drin
-                            ? 'text-sky-400' : 'text-white/20'}`}>
+                            ? 'text-akz' : 'text-white/20'}`}>
                             {drin ? '−' : '+'}
                           </span>
                         </button>
@@ -4231,7 +4231,7 @@ export default function TweetSeite() {
                             name: pr?.anzeige || sp.name, id: sp.epicId })}
                           className={`flex items-center gap-1.5 overflow-hidden rounded-lg
                                       border px-2 py-1.5 text-left text-[11px] transition ${
-                            an ? 'border-sky-500 bg-sky-950/40 text-sky-400'
+                            an ? 'border-akz bg-akz/40 text-akz'
                                : 'border-white/10 text-white/55 hover:border-white/15'}`}>
                           <Flagge land={landFuer(sp.name, sp.epicId)} groesse={11} />
                           <span className="truncate">
@@ -4249,9 +4249,9 @@ export default function TweetSeite() {
               <div className="mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <p className="text-xs text-white/55"><T>Co-streamers for</T> {coRegion} · <T>one line per streamer: country, Twitch, X handle</T> <span className="text-white/30">(DE gripey @gripey)</span></p>
                 <textarea value={coText || coZeilenText} onChange={(e) => setCoText(e.target.value)} rows={Math.max(3, coAktiv.length + 1)}
-                  className="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 font-mono text-xs text-white outline-none focus:border-sky-500" />
+                  className="mt-2 w-full rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 font-mono text-xs text-white outline-none focus:border-akz" />
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <button type="button" onClick={() => void coSpeichern()} className="rounded-full bg-sky-500 px-4 py-1.5 text-xs font-bold text-white hover:bg-sky-400"><T>Speichern</T></button>
+                  <button type="button" onClick={() => void coSpeichern()} className="rounded-full bg-akz px-4 py-1.5 text-xs font-bold text-[#04050a] hover:brightness-110"><T>Speichern</T></button>
                   {coGespeichert && <span className="text-[11px] text-white/55">{coGespeichert}</span>}
                 </div>
                 <div className="mt-3 border-t border-white/10 pt-3">
@@ -4259,7 +4259,7 @@ export default function TweetSeite() {
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <code className="rounded bg-black/40 px-2 py-1 text-xs text-white/85">{coAntwort || '—'}</code>
                     {coAntwort && <button type="button" onClick={() => { void navigator.clipboard.writeText(coAntwort).then(() => { setCoKopiert(true); setTimeout(() => setCoKopiert(false), 1500); }); }}
-                      className="rounded-full border border-white/15 px-3 py-1 text-[11px] text-white/70 hover:border-sky-500 hover:text-sky-400">{coKopiert ? <T>kopiert</T> : <T>Kopieren</T>}</button>}
+                      className="rounded-full border border-white/15 px-3 py-1 text-[11px] text-white/70 hover:border-akz hover:text-akz">{coKopiert ? <T>kopiert</T> : <T>Kopieren</T>}</button>}
                     {!coAntwort && <span className="text-[11px] text-white/40"><T>Enter X handles above, then they show up here.</T></span>}
                   </div>
                 </div>
@@ -4273,7 +4273,7 @@ export default function TweetSeite() {
                     <T>Weiter kommen die ersten (leer: laut Epic)</T>
                     <input value={verpasstCutText} onChange={(e) => setVerpasstCutText(e.target.value.replace(/\D/g, '').slice(0, 5))}
                       placeholder={verpasst.cut ? String(verpasst.cut) : '300'} inputMode="numeric"
-                      className="w-20 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 text-sm text-white outline-none focus:border-sky-500" />
+                      className="w-20 rounded-lg border border-white/10 bg-black/40 px-2.5 py-1.5 text-sm text-white outline-none focus:border-akz" />
                   </label>
                   <span className="text-[11px] text-white/40">
                     {verpasst.laedt ? <T>Suche läuft …</T>
@@ -4294,7 +4294,7 @@ export default function TweetSeite() {
                     <button key={e.rank} onClick={() => setSpotlight(e.rank)}
                       className={`flex items-center gap-1.5 overflow-hidden rounded-lg
                                   border px-2 py-1.5 text-left text-[11px] transition ${
-                        spotlight === e.rank ? 'border-sky-500 bg-sky-950/40 text-sky-400'
+                        spotlight === e.rank ? 'border-akz bg-akz/40 text-akz'
                                              : 'border-white/10 text-white/55 hover:border-white/15'}`}>
                       <span className="w-6 shrink-0 tabular-nums text-white/40">#{e.rank}</span>
                       <span className="truncate">
@@ -4320,7 +4320,7 @@ export default function TweetSeite() {
                       aktiveListen.map((b) => b.schluessel))}
                     className="rounded-md border border-white/10 px-2 py-0.5
                                text-[11px] text-white/55 transition
-                               hover:border-sky-500/60 hover:text-sky-400">
+                               hover:border-akz/60 hover:text-akz">
                     <T>alle</T>
                   </button>
                   <button type="button" onClick={() => setGewaehlteListen([])}
@@ -4335,7 +4335,7 @@ export default function TweetSeite() {
                     className="ml-auto w-40 rounded-lg border border-white/10
                                bg-black/40 px-2.5 py-1 text-[11px] text-white
                                outline-none placeholder:text-white/30
-                               focus:border-sky-500" />
+                               focus:border-akz" />
                 </div>
                 <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {listenAnsicht.liste.map((b) => {
@@ -4347,7 +4347,7 @@ export default function TweetSeite() {
                           : [...alt, b.schluessel])}
                         className={`flex items-center gap-1.5 overflow-hidden rounded-lg
                                     border px-2 py-1.5 text-left text-[11px] transition ${
-                          an ? 'border-sky-500 bg-sky-950/40 text-sky-400'
+                          an ? 'border-akz bg-akz/40 text-akz'
                              : 'border-white/10 text-white/55 hover:border-white/15'}`}>
                         <span className="not-italic">{b.symbol}</span>
                         <span className="truncate">{b.titel}</span>
@@ -4361,7 +4361,7 @@ export default function TweetSeite() {
                   <button type="button" onClick={() => setAlleListen(true)}
                     className="mt-2 text-[11px] text-white/40 underline
                                decoration-dotted underline-offset-2
-                               hover:text-sky-400">
+                               hover:text-akz">
                     +{listenAnsicht.mehr} <T>weitere Kennzahlen</T>
                   </button>
                 )}
@@ -4396,15 +4396,15 @@ export default function TweetSeite() {
                   placeholder="https://x.com/… "
                   className="min-w-[260px] flex-1 rounded-lg border border-white/10
                              bg-black/40 px-3 py-2 text-xs text-white outline-none
-                             placeholder:text-white/30 focus:border-sky-500" />
+                             placeholder:text-white/30 focus:border-akz" />
                 <button onClick={() => void quelleHolen()} disabled={quellLaedt}
-                  className="rounded-lg bg-sky-500 px-3 py-2 text-xs font-medium text-white
-                             transition hover:bg-sky-400 disabled:opacity-40">
+                  className="rounded-lg bg-akz px-3 py-2 text-xs font-medium text-[#04050a]
+                             transition hover:brightness-110 disabled:opacity-40">
                   {quellLaedt ? <T>holt …</T> : <T>Text holen</T>}
                 </button>
                 <label className="cursor-pointer rounded-lg border border-white/15 px-3 py-2
-                                  text-xs text-white/70 transition hover:border-sky-500
-                                  hover:text-sky-400">
+                                  text-xs text-white/70 transition hover:border-akz
+                                  hover:text-akz">
                   <T>Eigenes Bild</T>
                   <input type="file" accept="image/*" multiple className="hidden"
                     onChange={(e) => bilderWaehlen(e.target.files)} />
@@ -4426,7 +4426,7 @@ export default function TweetSeite() {
                 <div className="mt-2 text-[11px] text-white/40">
                   <T>Übernommen von</T>{' '}
                   <a href={quelle.url} target="_blank" rel="noreferrer"
-                    className="text-sky-400 underline">
+                    className="text-akz underline">
                     {quelle.autor ?? 'X'}{quelle.konto ? ` @${quelle.konto}` : ''}
                   </a>
                   {quelle.datum ? ` · ${quelle.datum}` : ''}
@@ -4443,13 +4443,13 @@ export default function TweetSeite() {
                     <a key={b} href={b} target="_blank" rel="noreferrer"
                       title={t('In neuem Tab öffnen')}
                       className="block h-20 w-20 overflow-hidden rounded-lg border
-                                 border-white/10 transition hover:border-sky-500">
+                                 border-white/10 transition hover:border-akz">
                       <img src={b} alt="" className="h-full w-full object-cover" />
                     </a>
                   ))}
                   {eigeneBilder.map((b, i) => (
                     <span key={`eigen-${i}`} className="relative block h-20 w-20
-                                 overflow-hidden rounded-lg border border-sky-800">
+                                 overflow-hidden rounded-lg border border-akz/30">
                       <img src={b} alt="" className="h-full w-full object-cover" />
                       <button
                         onClick={() => setEigeneBilder((alt) =>
@@ -4490,22 +4490,22 @@ export default function TweetSeite() {
                   <button onClick={() => void eigenVorschlagen('underrated')}
                     disabled={eigenLaedt}
                     className="rounded border border-white/15 px-2 py-1 text-[11px]
-                               text-white/70 transition hover:border-sky-500
-                               hover:text-sky-400 disabled:opacity-40">
+                               text-white/70 transition hover:border-akz
+                               hover:text-akz disabled:opacity-40">
                     <T>Unterschätzte vorschlagen</T>
                   </button>
                   <button onClick={() => void eigenVorschlagen('topelims')}
                     disabled={eigenLaedt}
                     className="rounded border border-white/15 px-2 py-1 text-[11px]
-                               text-white/70 transition hover:border-sky-500
-                               hover:text-sky-400 disabled:opacity-40">
+                               text-white/70 transition hover:border-akz
+                               hover:text-akz disabled:opacity-40">
                     <T>Meiste Elims je Match</T>
                   </button>
                   {eigenBild && (
                     <>
                       <button onClick={() => void eigenKopieren()}
-                        className="rounded bg-sky-500 px-2 py-1 text-[11px] font-medium
-                                   text-white transition hover:bg-sky-400">
+                        className="rounded bg-akz px-2 py-1 text-[11px] font-medium
+                                   text-[#04050a] transition hover:brightness-110">
                         {eigenKopiert ? <T>kopiert</T> : <T>Bild kopieren</T>}
                       </button>
                       <a href={eigenBild} download="spielerbilder.png"
@@ -4552,7 +4552,7 @@ export default function TweetSeite() {
                         <button key={r} onClick={() => setFestRegion(r)}
                           className={`rounded px-1.5 py-0.5 text-[10px] transition ${
                             festRegion === r
-                              ? 'bg-sky-500/15 text-sky-400'
+                              ? 'bg-akz/15 text-akz'
                               : 'text-white/40 hover:text-white/70'}`}>
                           {r}
                         </button>
@@ -4564,7 +4564,7 @@ export default function TweetSeite() {
                       placeholder={t('Spieler suchen …')}
                       className="mb-1.5 w-full rounded border border-white/10 bg-black/40
                                  px-2 py-1 text-[11px] text-white outline-none
-                                 placeholder:text-white/30 focus:border-sky-500" />
+                                 placeholder:text-white/30 focus:border-akz" />
 
                     {fest.length > 0 && (
                       <div className="mb-1.5 flex flex-wrap gap-1">
@@ -4574,7 +4574,7 @@ export default function TweetSeite() {
                               v.filter((y) => y.epicId !== x.epicId))}
                             title={`${x.anzeige} — ${t('Entfernen')}`}
                             className="relative aspect-square w-12 overflow-hidden rounded
-                                       border border-sky-600 hover:border-rose-500">
+                                       border border-akz hover:border-rose-500">
                             {x.bild
                               ? <img src={x.bild} alt={x.anzeige}
                                   className="h-full w-full object-cover" />
@@ -4604,7 +4604,7 @@ export default function TweetSeite() {
                             onClick={() => setFest((v) => [...v, x])}
                             title={x.anzeige + (x.foto ? '' : ` — ${t('kein Foto')}`)}
                             className={`aspect-square w-full overflow-hidden rounded
-                                        border transition hover:border-sky-500 ${x.foto
+                                        border transition hover:border-akz ${x.foto
                               ? 'border-white/10' : 'border-white/5 opacity-40'}`}>
                             {x.bild
                               ? <img src={x.bild} alt={x.anzeige} loading="lazy"
@@ -4638,14 +4638,14 @@ export default function TweetSeite() {
                       role="switch" aria-checked={plaetzeAnzeigen}
                       title={t('Die Plätze im Feld am Ende jeder Zeile, z. B. „(#1)“ – im Text und im Bild.')}
                       className={`ml-auto rounded-lg border px-2.5 py-1 text-[11px] font-medium transition ${plaetzeAnzeigen
-                        ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                        ? 'border-akz bg-akz/15 text-akz'
                         : 'border-white/10 text-white/40 hover:text-white/70'}`}>
                       <T>Plätze anzeigen</T>{' · '}{plaetzeAnzeigen ? t('an') : t('aus')}
                     </button>
                   )}
                   <button onClick={kopieren}
-                    className="rounded-lg bg-sky-500 px-3 py-1 text-xs font-medium text-white
-                               transition hover:bg-sky-400">
+                    className="rounded-lg bg-akz px-3 py-1 text-xs font-medium text-[#04050a]
+                               transition hover:brightness-110">
                     {kopiert ? 'copied' : 'copy'}
                   </button>
                 </div>
@@ -4653,7 +4653,7 @@ export default function TweetSeite() {
                   onChange={(e) => setEigenerText(e.target.value)}
                   className="w-full resize-none rounded-lg border border-white/10 bg-black/40
                              p-3 font-mono text-xs leading-relaxed text-white/85 outline-none
-                             focus:border-sky-500" />
+                             focus:border-akz" />
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <p className="text-[11px] text-white/40">
                     {text.length}  characters{eigenerText !== null && ' · edited by hand'}
@@ -4694,7 +4694,7 @@ export default function TweetSeite() {
                       <button key={n} onClick={() => setMosaikAnzahl(n)}
                         className={`rounded-md border px-2 py-0.5 text-[11px]
                                     font-semibold transition ${mosaikAnzahl === n
-                          ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                          ? 'border-akz bg-akz/15 text-akz'
                           : 'border-white/10 text-white/40 hover:text-white/70'}`}>
                         {n}
                       </button>
@@ -4705,15 +4705,15 @@ export default function TweetSeite() {
                   {!statKarteVorlage && (
                   <span className="ml-auto flex items-center gap-2">
                     <button onClick={mosaikKopieren} disabled={!mosaikUrl}
-                      className="rounded-lg bg-sky-500 px-3 py-1 text-xs font-medium
-                                 text-white transition hover:bg-sky-400
+                      className="rounded-lg bg-akz px-3 py-1 text-xs font-medium
+                                 text-[#04050a] transition hover:brightness-110
                                  disabled:cursor-not-allowed disabled:opacity-40">
                       {mosaikKopiert ? <T>kopiert</T> : <T>Bild kopieren</T>}
                     </button>
                     <button onClick={mosaikSpeichern} disabled={!mosaikUrl}
                       className="rounded-lg border border-white/10 px-3 py-1 text-xs
-                                 text-white/55 transition hover:border-sky-500/60
-                                 hover:text-sky-400 disabled:opacity-40">
+                                 text-white/55 transition hover:border-akz/60
+                                 hover:text-akz disabled:opacity-40">
                       <T>speichern</T>
                     </button>
                   </span>
@@ -4763,8 +4763,8 @@ export default function TweetSeite() {
             <div className="mt-6 flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => setZuordnungOffen(true)}
                 className="rounded-lg border border-white/10 px-3 py-1.5 text-xs
-                           text-white/55 transition hover:border-sky-500/60
-                           hover:text-sky-400">
+                           text-white/55 transition hover:border-akz/60
+                           hover:text-akz">
                 <T>Spieler zuordnen</T>
                 <span className="ml-2 tabular-nums text-white/30">
                   {spielerListe.filter((sp) => findeProfil(sp.voll, sp.id)).length}
@@ -4773,8 +4773,8 @@ export default function TweetSeite() {
               </button>
               <button type="button" onClick={() => setStatistikOffen(true)}
                 className="rounded-lg border border-white/10 px-3 py-1.5 text-xs
-                           text-white/55 transition hover:border-sky-500/60
-                           hover:text-sky-400">
+                           text-white/55 transition hover:border-akz/60
+                           hover:text-akz">
                 <T>Turnierstatistik</T>
                 <span className="ml-2 tabular-nums text-white/30">
                   {aktiveListen.length}
@@ -4827,7 +4827,7 @@ export default function TweetSeite() {
                     className="w-72 max-w-full rounded-lg border border-white/10
                                bg-black/40 px-3 py-1.5 text-xs text-white
                                outline-none placeholder:text-white/30
-                               focus:border-sky-500" />
+                               focus:border-akz" />
                   {zuordnenSuche && (
                     <button onClick={() => setZuordnenSuche('')}
                       className="text-[11px] text-white/40 underline
@@ -4847,7 +4847,7 @@ export default function TweetSeite() {
                       <button key={w} onClick={() => setZuordnenFilter(w)}
                         className={`rounded-md border px-2 py-0.5 text-[11px]
                                     transition ${zuordnenFilter === w
-                          ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                          ? 'border-akz bg-akz/15 text-akz'
                           : 'border-white/10 text-white/40 hover:text-white/70'}`}>
                         <T>{titel}</T>
                       </button>
@@ -4875,7 +4875,7 @@ export default function TweetSeite() {
                       return (
                         <div key={sp.schluessel}
                           className="col-span-full flex flex-col gap-1.5 rounded-lg
-                                     border border-sky-500 bg-black/40 px-2.5 py-2">
+                                     border border-akz bg-black/40 px-2.5 py-2">
                         <div className="flex flex-wrap items-center gap-1">
                           <span className="text-[11px] text-white/70"
                             title={sp.id ? `Account ${sp.id.slice(0, 8)}…` : 'without account ID'}>
@@ -4912,7 +4912,7 @@ export default function TweetSeite() {
                             onClick={() => profilSpeichern(sp.voll, pflegeLand, pflegeX,
                               pflegeRegion, pflegeAnzeige, sp.id)}
                             title={t('Speichern — die Eingabetaste tut dasselbe')}
-                            className="rounded bg-sky-500 px-2 py-0.5 text-[11px] text-white">
+                            className="rounded bg-akz px-2 py-0.5 text-[11px] text-[#04050a]">
                             ok
                           </button>
                         </div>
@@ -4925,8 +4925,8 @@ export default function TweetSeite() {
                             {vorschlaege.map((v) => (
                               <button key={v} onClick={() => setPflegeAnzeige(v)}
                                 className="rounded border border-white/15 px-1.5 py-0.5
-                                           text-[10px] text-white/70 hover:border-sky-500
-                                           hover:text-sky-400">
+                                           text-[10px] text-white/70 hover:border-akz
+                                           hover:text-akz">
                                 {v}
                               </button>
                             ))}
@@ -4999,8 +4999,8 @@ export default function TweetSeite() {
                   <button type="button"
                     onClick={() => { setVollSuche(''); setVollansicht('alle'); }}
                     className="ml-auto rounded-md border border-white/15 px-2 py-1
-                               text-[11px] text-white/70 hover:border-sky-500/60
-                               hover:bg-white/[0.08] hover:text-sky-400">
+                               text-[11px] text-white/70 hover:border-akz/60
+                               hover:bg-white/[0.08] hover:text-akz">
                      All values ({gesamtTabelle.length})
                   </button>
                 )}
@@ -5021,8 +5021,8 @@ export default function TweetSeite() {
                           aria-label={`${b.titel}: show all ${b.alle!.length}`}
                           className="ml-auto shrink-0 rounded border border-white/15
                                      px-1.5 pb-px leading-none text-sm text-white/40
-                                     hover:border-sky-500/60 hover:bg-white/[0.08]
-                                     hover:text-sky-400">
+                                     hover:border-akz/60 hover:bg-white/[0.08]
+                                     hover:text-akz">
                           +
                         </button>
                       )}
@@ -5051,7 +5051,7 @@ export default function TweetSeite() {
                               </div>
                             </td>
                             <td className="w-20 py-1.5 pr-3 text-right align-middle
-                                           font-semibold tabular-nums text-sky-400">
+                                           font-semibold tabular-nums text-akz">
                               {b.zeit ? dauer(p.wert) : p.wert.toLocaleString('de-DE')}
                               {!b.zeit && b.einheit && <span className="ml-0.5 text-[10px]
                                                    font-normal text-white/40">{b.einheit}</span>}
@@ -5116,7 +5116,7 @@ export default function TweetSeite() {
                 placeholder={t('Spieler, Land oder Region suchen…')}
                 className="w-full rounded-md border border-white/10 bg-white/[0.035] backdrop-blur-xl
                            px-3 py-1.5 text-xs text-white/85
-                           placeholder:text-white/30 focus:border-sky-500/60
+                           placeholder:text-white/30 focus:border-akz/60
                            focus:outline-none" />
             </div>
 
@@ -5221,7 +5221,7 @@ export default function TweetSeite() {
                             </div>
                           </td>
                           <td className="w-24 py-2 pr-4 text-right align-middle
-                                         font-semibold tabular-nums text-sky-400">
+                                         font-semibold tabular-nums text-akz">
                             {offeneListe?.zeit ? dauer(pl.wert) : pl.wert.toLocaleString('de-DE')}
                             {!offeneListe?.zeit && offeneListe?.einheit && (
                               <span className="ml-0.5 text-[10px] font-normal
@@ -5247,7 +5247,7 @@ export default function TweetSeite() {
                         overflow-y-auto bg-black/70 p-4 sm:p-8"
           onClick={() => setBefehleOffen(false)}>
           <div onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl
+            className="w-full max-w-4xl fl !rounded-2xl
                        p-5 shadow-2xl">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-white">
@@ -5263,7 +5263,7 @@ export default function TweetSeite() {
               placeholder="search — damage, wins, elims …"
               className="mb-4 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2
                          text-sm text-white outline-none placeholder:text-white/30
-                         focus:border-sky-500" />
+                         focus:border-akz" />
 
             <div className="max-h-[70vh] space-y-5 overflow-y-auto pr-1">
               {befehlsGruppen.map((g) => {
@@ -5276,7 +5276,7 @@ export default function TweetSeite() {
                 return (
                   <div key={g.titel}>
                     <h4 className="text-[11px] font-semibold uppercase tracking-wider
-                                   text-sky-400">
+                                   text-akz">
                       {g.titel}
                       <span className="ml-1.5 font-normal text-white/30">
                         ({treffer.length})
@@ -5294,7 +5294,7 @@ export default function TweetSeite() {
                           title={x.e}
                           className="flex flex-col rounded-lg border border-white/10
                                      px-2.5 py-1.5 text-left transition
-                                     hover:border-sky-500 hover:bg-sky-950/20">
+                                     hover:border-akz hover:bg-akz/20">
                           <span className="truncate font-mono text-[12px] text-white/85">
                             {x.b}
                           </span>

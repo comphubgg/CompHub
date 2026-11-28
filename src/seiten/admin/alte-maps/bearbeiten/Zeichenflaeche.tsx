@@ -433,7 +433,7 @@ export default function Zeichenflaeche({ bild, formen, wahl, modus, onWahl, onNe
               onDoubleClick={(e) => e.stopPropagation()}
               style={{ left: `${q.x}%`, top: `${q.y}%` }}
               className="karten-fest absolute z-20 flex h-6 w-6 cursor-grab items-center justify-center">
-              <span className="h-3 w-3 rounded-sm border-2 border-sky-400 bg-black/40" />
+              <span className="h-3 w-3 rounded-sm border-2 border-akz bg-black/40" />
             </button>
           );
         })}

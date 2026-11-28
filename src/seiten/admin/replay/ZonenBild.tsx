@@ -242,17 +242,17 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
         {reiter.map(([w, name, uebersetzen]) => (
           <button key={w} type="button" onClick={() => setWahl(w)}
             className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${wahl === w
-              ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-white/10 text-white/55 hover:border-white/25 hover:text-white/85'}`}>
+              ? 'border-akz bg-akz/10 text-akz' : 'border-white/10 text-white/55 hover:border-white/25 hover:text-white/85'}`}>
             {uebersetzen ? <T>{name}</T> : name}
           </button>
         ))}
         {meldung && <span className="ml-auto text-xs font-semibold text-emerald-400">{meldung}</span>}
         <button type="button" onClick={() => void kopieren(false)} disabled={!bereit || fehlend}
-          className={`${meldung ? '' : 'ml-auto '}rounded-lg bg-sky-500 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:opacity-50`}>
+          className={`${meldung ? '' : 'ml-auto '}rounded-lg bg-akz px-4 py-1.5 text-sm font-semibold text-[#04050a] transition hover:brightness-110 disabled:opacity-50`}>
           <T>Bild kopieren</T>
         </button>
         <button type="button" onClick={() => void kopieren(true)} disabled={!bereit || fehlend}
-          className="rounded-lg border border-white/15 px-4 py-1.5 text-sm font-semibold text-white/70 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
+          className="rounded-lg border border-white/15 px-4 py-1.5 text-sm font-semibold text-white/70 transition hover:border-akz hover:text-akz disabled:opacity-50">
           <T>Save image</T>
         </button>
       </div>
@@ -264,7 +264,7 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
           {karte.insel ? ` (${karte.insel})` : ''}
         </p>
       )}
-      <canvas ref={leinwand} data-insel={karte.insel ?? karte.art} className="aspect-square w-full max-w-3xl rounded-xl border border-white/10 bg-sky-950" />
+      <canvas ref={leinwand} data-insel={karte.insel ?? karte.art} className="aspect-square w-full max-w-3xl rounded-xl border border-white/10 bg-akz/10" />
     </section>
   );
 }

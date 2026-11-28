@@ -93,7 +93,7 @@ export default function Live({ klassisch }: { klassisch: () => void }) {
     <>
       {kopf}
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        {[{ t: 'Online now', w: online.length, f: 'text-emerald-300' }, { t: 'Sessions in the last 24 h', w: heute, f: 'text-sky-300' }, { t: 'People recorded', w: leute.length, f: 'text-white' }].map((k, i) => (
+        {[{ t: 'Online now', w: online.length, f: 'text-emerald-300' }, { t: 'Sessions in the last 24 h', w: heute, f: 'text-akz' }, { t: 'People recorded', w: leute.length, f: 'text-white' }].map((k, i) => (
           <Glas key={k.t} verzoegerung={i * 0.05} className="p-5">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/40">{k.t}</p>
             <p className={`mt-1 text-4xl font-extrabold tabular-nums ${k.f}`}>{k.w}</p>
@@ -119,7 +119,7 @@ export default function Live({ klassisch }: { klassisch: () => void }) {
           </div>
           {verlauf.length > 0 && (
             <section>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-sky-300">History</h2>
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-[0.2em] text-akz">History</h2>
               <Glas className="divide-y divide-white/5 overflow-hidden">
                 {verlauf.map((v, i) => (
                   <motion.div key={`${v.kennung}-${v.von}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i, 30) * 0.015 }}

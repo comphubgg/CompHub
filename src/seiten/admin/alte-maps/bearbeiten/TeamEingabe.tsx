@@ -99,11 +99,11 @@ export default function TeamEingabe({ max, unbekannt = false, onTeam, loese }: {
   return (
     <div>
       <div className="relative">
-        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 focus-within:border-sky-500">
+        <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 focus-within:border-akz">
           {gewaehlt.map((s, i) => (
             <span key={`${s.name}-${i}`} className="flex items-center gap-1.5">
               {i > 0 && <span className="text-xs font-bold text-white/40">+</span>}
-              <span className="flex items-center gap-1.5 rounded-md border border-sky-500/40 bg-sky-500/10 py-0.5 pl-1.5 pr-1 text-[11px] font-bold uppercase text-sky-100">
+              <span className="flex items-center gap-1.5 rounded-md border border-akz/40 bg-akz/10 py-0.5 pl-1.5 pr-1 text-[11px] font-bold uppercase text-akz">
                 <TeamFlagge groesse={14} laender={[s.land ?? undefined]} />{s.name}
                 <button type="button" aria-label={t('Remove player')} title={t('Remove player')}
                   onClick={() => { setGewaehlt((alt) => alt.filter((_, j) => j !== i)); setOffen(true); }}
@@ -120,10 +120,10 @@ export default function TeamEingabe({ max, unbekannt = false, onTeam, loese }: {
             </span>
           ) : (
             <button ref={plus} type="button" onClick={() => setOffen(true)} aria-label={t('Add another player')} title={t('Add another player')}
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-sky-500/50 bg-sky-500/10 text-base font-bold text-sky-200 transition hover:bg-sky-500/25 focus:outline-none focus:ring-2 focus:ring-sky-500">+</button>
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-akz/50 bg-akz/10 text-base font-bold text-akz transition hover:bg-akz/25 focus:outline-none focus:ring-2 focus:ring-akz">+</button>
           )}
           <button type="button" onClick={() => void anlegen()} disabled={!gewaehlt.length && !text.trim()}
-            className="ml-auto rounded-md bg-sky-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white transition hover:bg-sky-400 disabled:opacity-30">
+            className="ml-auto rounded-md bg-akz px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-[#04050a] transition hover:brightness-110 disabled:opacity-30">
             <T>Anlegen</T>
           </button>
         </div>

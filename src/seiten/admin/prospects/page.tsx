@@ -61,8 +61,8 @@ export default function ProspectsPflege() {
   const sichtbar = useMemo(() => (d?.liste ?? []).filter((z) => !z.ausgeblendet && (!region || z.region === region)
     && (!filter.trim() || z.name.toLowerCase().includes(filter.trim().toLowerCase()))).slice(0, 300), [d, region, filter]);
   const aus = Object.entries(d?.ausgeblendet ?? {});
-  const knopf = 'rounded-md border border-white/15 px-2 py-1 text-[11px] font-semibold text-white/70 transition hover:border-sky-500 hover:text-sky-300 disabled:opacity-40';
-  const chip = (an: boolean) => `rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${an ? 'bg-sky-500 text-white' : 'border border-white/10 text-white/55 hover:text-white/85'}`;
+  const knopf = 'rounded-md border border-white/15 px-2 py-1 text-[11px] font-semibold text-white/70 transition hover:border-akz hover:text-akz disabled:opacity-40';
+  const chip = (an: boolean) => `rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition ${an ? 'bg-akz text-[#04050a]' : 'border border-white/10 text-white/55 hover:text-white/85'}`;
 
   if (!erlaubt) {
     return <NurAdmins />;
@@ -73,7 +73,7 @@ export default function ProspectsPflege() {
       <div className="">
         <SeitenKopf className="mb-5" marke={<T>Spieler & Teams</T>} titel={<>Prospects {d?.titelJahr ?? ''}</>}
           text={<T>The list recomputes itself every six hours from our own data only (placements, finals, replays, prize money). Nobody sets the order or the stars by hand; here you can only hide an account – e.g. when it is banned or two accounts belong to the same person.</T>}
-          rechts={<Link href="/statistics?bereich=prospects" className="rounded-lg border border-sky-500/50 px-3 py-2 text-sm font-semibold text-sky-300 hover:bg-sky-500/10"><T>Public page</T> ↗</Link>} />
+          rechts={<Link href="/statistics?bereich=prospects" className="rounded-lg border border-akz/50 px-3 py-2 text-sm font-semibold text-akz hover:bg-akz/10"><T>Public page</T> ↗</Link>} />
 
         {fehler && <p className="mb-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{fehler}</p>}
 
@@ -81,12 +81,12 @@ export default function ProspectsPflege() {
           <button type="button" onClick={() => setRegion('')} className={chip(!region)}><T>Alle</T></button>
           {REGIONEN_REIHE.map((r) => <button key={r} type="button" onClick={() => setRegion(r)} className={chip(region === r)}>{r}</button>)}
           <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('Search the list …')}
-            className="ml-auto w-full max-w-[220px] rounded-lg border border-white/10 bg-white/[0.035] backdrop-blur-xl px-3 py-1.5 text-xs text-white outline-none focus:border-sky-500" />
+            className="ml-auto w-full max-w-[220px] fl !rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-akz" />
         </div>
         {d?.kopf && <p className="mb-2 text-[11px] text-white/40">{t('Stand')}: {datum(d.kopf.stand)} · {d.kopf.prospects} {t('players meet the conditions')}</p>}
         {d && !d.kopf && <p className="mb-2 text-[11px] text-amber-300"><T>The list is being recomputed right now.</T></p>}
 
-        <div className="overflow-x-auto rounded-xl border border-white/10 bg-white/[0.035] backdrop-blur-xl">
+        <div className="overflow-x-auto fl !rounded-xl">
           <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-white/10 text-left text-[10px] font-semibold uppercase tracking-[0.12em] text-white/40">
@@ -102,7 +102,7 @@ export default function ProspectsPflege() {
                 <tr key={z.epicId} className="border-b border-white/10">
                   <td className="px-3 py-1.5 text-xs font-bold tabular-nums text-white/40">{z.rang}</td>
                   <td className="max-w-[200px] truncate px-3 py-1.5 font-semibold text-white">
-                    <a href={`/statistics?spieler=${z.epicId}`} target="_blank" rel="noreferrer" className="hover:text-sky-300">{z.name}</a>{z.stern ? <span className="ml-1 text-sky-300">★</span> : null}
+                    <a href={`/statistics?spieler=${z.epicId}`} target="_blank" rel="noreferrer" className="hover:text-akz">{z.name}</a>{z.stern ? <span className="ml-1 text-akz">★</span> : null}
                   </td>
                   <td className="px-2 py-1.5 text-xs text-white/55">{z.region || '–'}</td>
                   <td className="px-2 py-1.5 text-right text-xs font-bold tabular-nums text-white/85">{z.score.toFixed(1)}</td>
@@ -128,7 +128,7 @@ export default function ProspectsPflege() {
         </div>
 
         {aus.length > 0 && (
-          <section className="mt-5 rounded-2xl border border-white/10 bg-white/[0.035] backdrop-blur-xl p-4">
+          <section className="mt-5 fl !rounded-2xl p-4">
             <h2 className="mb-2 text-sm font-extrabold text-white"><T>Hidden</T> ({aus.length})</h2>
             <ul className="divide-y divide-white/10">
               {aus.map(([id, e]) => (

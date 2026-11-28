@@ -32,7 +32,7 @@ function IdeeKarte({ idee, heute }: { idee: PostIdee; heute: boolean }) {
     try { await navigator.clipboard.writeText(idee.text); setKopiert(true); setTimeout(() => setKopiert(false), 1800); } catch { /* Browser ohne Zugriff */ }
   };
   return (
-    <article className={`overflow-hidden rounded-2xl border bg-white/[0.035] backdrop-blur-xl ${heute ? 'border-sky-500/60 shadow-[0_0_0_1px_rgba(14,165,233,.25)]' : 'border-white/10'}`}>
+    <article className={`overflow-hidden rounded-2xl border bg-white/[0.035] backdrop-blur-xl ${heute ? 'border-akz/60 shadow-[0_0_0_1px_rgba(14,165,233,.25)]' : 'border-white/10'}`}>
       <div className="relative bg-black/40" style={{ aspectRatio: format === '1500x500' ? '3 / 1' : '16 / 9' }}>
         {!geladen && <div className="absolute inset-0 animate-pulse bg-white/[0.035] backdrop-blur-xl" />}
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -40,24 +40,24 @@ function IdeeKarte({ idee, heute }: { idee: PostIdee; heute: boolean }) {
       </div>
       <div className="space-y-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-sky-300"><T>{ART_NAME[idee.art]}</T></span>
+          <span className="rounded-full bg-akz/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-akz"><T>{ART_NAME[idee.art]}</T></span>
           <span className="text-[11px] font-semibold text-white/40">{t('Relevance')} {idee.relevanz}</span>
           <div className="ml-auto flex gap-1 rounded-full border border-white/10 bg-black/40 p-0.5">
             {(['1600x900', '1500x500'] as Format[]).map((f) => (
               <button key={f} type="button" onClick={() => { setFormat(f); setGeladen(false); }}
-                className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${format === f ? 'bg-sky-500 text-white' : 'text-white/55 hover:text-white'}`}>{f.replace('x', ' × ')}</button>
+                className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${format === f ? 'bg-akz text-[#04050a]' : 'text-white/55 hover:text-white'}`}>{f.replace('x', ' × ')}</button>
             ))}
           </div>
         </div>
         <h3 className="text-base font-extrabold text-white">{idee.titel}</h3>
         <p className="text-xs leading-relaxed text-white/55">{idee.grund}</p>
         <textarea readOnly value={idee.text} rows={Math.min(14, idee.text.split('\n').length + 1)}
-          className="w-full resize-y rounded-lg border border-white/15 bg-black/40 px-3 py-2 font-mono text-[12.5px] leading-relaxed text-white outline-none focus:border-sky-500" />
+          className="w-full resize-y rounded-lg border border-white/15 bg-black/40 px-3 py-2 font-mono text-[12.5px] leading-relaxed text-white outline-none focus:border-akz" />
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" onClick={kopieren} className="rounded-lg bg-sky-500 px-3.5 py-2 text-xs font-bold text-white hover:bg-sky-400">
+          <button type="button" onClick={kopieren} className="rounded-lg bg-akz px-3.5 py-2 text-xs font-bold text-[#04050a] hover:brightness-110">
             {kopiert ? t('Copied ✓') : t('Text kopieren')}
           </button>
-          <a href={`${bild}&download=1`} className="rounded-lg border border-white/15 px-3.5 py-2 text-xs font-bold text-white/85 hover:border-sky-500 hover:text-white">
+          <a href={`${bild}&download=1`} className="rounded-lg border border-white/15 px-3.5 py-2 text-xs font-bold text-white/85 hover:border-akz hover:text-white">
             <T>Bild herunterladen</T> ({format.replace('x', ' × ')})
           </a>
           <span className={`ml-auto text-[11px] font-semibold ${laenge > 280 ? 'text-amber-400' : 'text-white/40'}`}>
@@ -104,7 +104,7 @@ export default function PostIdeenSeite() {
         text={t('Ready posts for X every day: an image in CompHub style and English text with flags and @ accounts - only from real data (fields, orgs, prize money, Power Rankings, cup catalogue). The two best for today at the top.')}
         rechts={(
           <button type="button" onClick={() => laden(true)} disabled={laedt}
-            className="rounded-lg border border-white/15 bg-black/40 px-3.5 py-2 text-xs font-bold text-white/85 hover:border-sky-500 disabled:opacity-50">
+            className="rounded-lg border border-white/15 bg-black/40 px-3.5 py-2 text-xs font-bold text-white/85 hover:border-akz disabled:opacity-50">
             {laedt ? t('Computing …') : t('Recompute')}
           </button>
         )} />
@@ -115,7 +115,7 @@ export default function PostIdeenSeite() {
       {stand && (
         <>
           <section className="space-y-3">
-            <h2 className="text-sm font-extrabold uppercase tracking-[0.16em] text-sky-400"><T>Post today</T></h2>
+            <h2 className="text-sm font-extrabold uppercase tracking-[0.16em] text-akz"><T>Post today</T></h2>
             {heute.length
               ? <div className="grid gap-4 lg:grid-cols-2">{heute.map((i) => <IdeeKarte key={i.id} idee={i} heute />)}</div>
               : <p className="text-sm text-white/55"><T>The data carries no idea today.</T></p>}
