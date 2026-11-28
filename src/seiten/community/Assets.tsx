@@ -47,10 +47,18 @@ function klasseVon(schluessel: string, name: string): string {
   return 'item';
 }
 
+// Wiki-Bilderliste einmal je Sitzung laden (Galerie -> Detail baut die Seite neu auf).
+let wikiLaden: Promise<Record<string, { name: string; bild: string }>> | null = null;
+let wikiFertig: Record<string, { name: string; bild: string }> | null = null;
+
 export function useAssets(): { liste: Asset[] | null; ausExport: boolean } {
   const { daten, status } = useHubDatei<{ assets: Array<{ id: string; name: string; class: string; rarity?: string; season?: string; image: string }> }>('assets.json');
-  const [wiki, setWiki] = useState<Record<string, { name: string; bild: string }> | null>(null);
-  useEffect(() => { if (status === 'fehlt') fetch('/api/waffen-bilder').then((r) => r.json()).then(setWiki).catch(() => setWiki({})); }, [status]);
+  const [wiki, setWiki] = useState<Record<string, { name: string; bild: string }> | null>(wikiFertig);
+  useEffect(() => {
+    if (status !== 'fehlt' || wikiFertig) return;
+    wikiLaden ??= fetch('/api/waffen-bilder').then((r) => r.json()).catch(() => ({})).then((j) => { wikiFertig = j; return j; });
+    wikiLaden.then(setWiki);
+  }, [status]);
   const liste = useMemo(() => {
     if (daten?.assets?.length) return daten.assets.map((a) => ({ id: a.id, name: a.name, klasse: a.class, bild: a.image, seltenheit: a.rarity, saison: a.season }));
     if (status !== 'fehlt' || !wiki) return null;

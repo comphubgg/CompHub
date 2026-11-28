@@ -181,15 +181,32 @@ export function DatenFehlen({ titel, text, braucht, kinder }: { titel: string; t
 }
 
 /** Kleines Ladefeld fuer JSON aus /hub-daten (Vite liefert fuer fehlende Dateien index.html - nur echtes JSON zaehlt). */
-export function useHubDatei<T>(name: string): { daten: T | null; status: 'laedt' | 'fehlt' | 'da' } {
-  const [z, setZ] = useState<{ daten: T | null; status: 'laedt' | 'fehlt' | 'da' }>({ daten: null, status: 'laedt' });
-  useEffect(() => {
-    let weg = false;
-    fetch(`/hub-daten/${name}`, { cache: 'no-store' }).then((r) => {
+// Zwischenspeicher je Datei fuer die ganze Sitzung: ein Seitenwechsel (z. B. Galerie -> Detail im Asset Studio) baut die Seite neu auf; ohne
+// Speicher wurde dann eine grosse Exportdatei (assets.json, objekte.json) jedes Mal neu geladen und die Seite hing lange auf "Loading".
+type HubDateiZustand = { daten: unknown; status: 'laedt' | 'fehlt' | 'da' };
+const hubDateien = new Map<string, Promise<HubDateiZustand>>();
+const hubDateiFertig = new Map<string, HubDateiZustand>();
+function hubDateiHolen(name: string): Promise<HubDateiZustand> {
+  let p = hubDateien.get(name);
+  if (!p) {
+    p = fetch(`/hub-daten/${name}`, { cache: 'no-store' }).then((r) => {
       if (!r.ok || !(r.headers.get('content-type') ?? '').includes('json')) throw new Error('fehlt');
       return r.json();
-    }).then((j) => { if (!weg) setZ({ daten: j as T, status: 'da' }); }).catch(() => { if (!weg) setZ({ daten: null, status: 'fehlt' }); });
+    }).then((j): HubDateiZustand => ({ daten: j, status: 'da' })).catch((): HubDateiZustand => ({ daten: null, status: 'fehlt' }))
+      .then((z) => { hubDateiFertig.set(name, z); return z; });
+    hubDateien.set(name, p);
+  }
+  return p;
+}
+
+export function useHubDatei<T>(name: string): { daten: T | null; status: 'laedt' | 'fehlt' | 'da' } {
+  const [z, setZ] = useState<HubDateiZustand>(() => hubDateiFertig.get(name) ?? { daten: null, status: 'laedt' });
+  useEffect(() => {
+    let weg = false;
+    const fertig = hubDateiFertig.get(name);
+    if (fertig) { setZ(fertig); return; }
+    hubDateiHolen(name).then((x) => { if (!weg) setZ(x); });
     return () => { weg = true; };
   }, [name]);
-  return z;
+  return z as { daten: T | null; status: 'laedt' | 'fehlt' | 'da' };
 }
