@@ -18,3 +18,15 @@ if (globalThis.fetch) { const f = globalThis.fetch; globalThis.fetch = async fun
 let elu = performance.eventLoopUtilization();
 const r1 = (o) => Object.fromEntries(Object.entries(o).sort((a, b) => b[1].ms - a[1].ms).slice(0, 12).map(([k, v]) => [k, Object.fromEntries(Object.entries(v).map(([a, b]) => [a, Math.round(b)]))]));
 setInterval(() => { const e = performance.eventLoopUtilization(elu); elu = performance.eventLoopUtilization(); process.stderr.write(`[MESS] ${new Date().toISOString().slice(11, 19)} pid=${process.pid} elu=${e.utilization.toFixed(2)} heap=${Math.round(process.memoryUsage().heapUsed / 1e6)}MB lesen=${JSON.stringify(r1(st.lesen))} parse=${JSON.stringify(r1({ p: st.parse }))} netz=${JSON.stringify(r1(st.netz))}\n`); }, 30000).unref();
+// Auf SIGUSR2 (28.11.2026): voll aufraeumen und den lebenden Heap melden - was nach einer Abfrage wirklich im Speicher bleibt, nicht der Muell davor.
+try {
+  require('v8').setFlagsFromString('--expose-gc');
+  const gc = require('vm').runInNewContext('gc');
+  process.on('SIGUSR2', () => {
+    const vor = process.memoryUsage().heapUsed;
+    gc(); gc();
+    const m = process.memoryUsage();
+    const raeume = require('v8').getHeapSpaceStatistics().map((r) => `${r.space_name}=${Math.round(r.space_used_size / 1e6)}`).join(' ');
+    process.stderr.write(`[HEAP] ${new Date().toISOString().slice(11, 19)} pid=${process.pid} vor=${Math.round(vor / 1e6)}MB lebend=${Math.round(m.heapUsed / 1e6)}MB rss=${Math.round(m.rss / 1e6)}MB extern=${Math.round(m.external / 1e6)}MB ${raeume}\n`);
+  });
+} catch (e) { process.stderr.write(`[HEAP] nicht moeglich: ${e.message}\n`); }

@@ -69,6 +69,7 @@ jobs:
           COMPHUB_VORRECHNEN: '1'
           ABFRAGEN: ${{ inputs.abfragen }}
           HEAP: ${{ inputs.heap }}
+          MESSEN_SPIELER: SwizzY,Charyy,Scroll
         run: |
           set +e
           sudo fallocate -l 8G /mnt/auslagerung && sudo chmod 600 /mnt/auslagerung && sudo mkswap /mnt/auslagerung >/dev/null && sudo swapon /mnt/auslagerung
@@ -85,10 +86,12 @@ jobs:
           for q in $ABFRAGEN; do
             N=$((N + 1))
             S=$(date +%s.%N); curl -s -o "/tmp/antworten/$N.json" -w "%{http_code} %{size_download}B" -m 1800 "http://localhost:3000/api/$q"; echo "  $(echo "$(date +%s.%N) - $S" | bc)s  $q"
-            grep '\[MESS\]' /tmp/server.log | tail -1 | cut -c1-900
+            pkill -USR2 -f next-server; sleep 20; grep '\[HEAP\]' /tmp/server.log | tail -1
+            # Preisgeld einzelner Spieler aus einer Jahresliste (MESSEN_SPIELER, Anzeigenamen) - Anhaenge sind von aussen nicht immer lesbar.
+            node -e 'try { const d = require(process.argv[1]); const l = (d.listen || []).find((x) => x.feld === "verdienst"); if (l) { console.log("    Spieltage", d.spieltage, "mit Regel", l.spieltageMitRegel); for (const n of (process.env.MESSEN_SPIELER || "").split(",")) { const p = l.plaetze.find((x) => x.anzeige === n); console.log("    " + n + ": " + (p ? p.verdienst : "-")); } } } catch (e) { console.log("    " + e.message); }' "/tmp/antworten/$N.json"
           done
           kill $WACHE
-          echo "=== Verlauf"; grep '\[MESS\]' /tmp/server.log | cut -c1-900
+          echo "=== Verlauf"; grep -E '\[(MESS|HEAP)\]' /tmp/server.log | cut -c1-900
           echo "=== Grosse Dateien"; grep '\[GROSS\]' /tmp/server.log | head -60
           tail -30 /tmp/server.log | grep -v '\[MESS\]' | cut -c1-300
           true
