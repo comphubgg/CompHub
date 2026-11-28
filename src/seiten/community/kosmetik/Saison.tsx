@@ -2,11 +2,11 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Countdown, Hinweis, LinkKopieren, restText, useHubDatei, useJetzt } from '../Bausteine';
-import { Bild, dauer, Flaeche, Laedt, Leer, Marke, Segment, SeitenKopf } from '../../../ds/Bausteine';
+import { Bild, dauer, Flaeche, Laedt, Leer, Marke, Segment } from '../../../ds/Bausteine';
 import { useSaison } from '../SeitenSaison';
 import { Zahl } from '../epic/Diagramm';
 import { datumKurz, holen, REITER, seltenVon, useAblage, useShop, useTeile, type Teil } from './daten';
-import { AblageHinweis, Bereich, Kachel, Schalter, ZahlenLeiste } from './Raster';
+import { AblageHinweis, Bereich, Kachel, Schalter } from './Raster';
 
 /*
  * Saison-Seiten mit dem, was es WIRKLICH gibt (Betreiber 27.11.2026: "Es soll immer etwas da sein"):
@@ -40,15 +40,6 @@ function Merker({ an, setzen, text, textAn, farbe = 'bg-emerald-400' }: { an: bo
       className={`mt-2 w-full rounded-lg py-1 text-[11px] font-bold transition ${an ? `${farbe} text-[#06080f]` : 'bg-white/[0.06] text-white/60 hover:bg-white/10 hover:text-white'}`}>
       <motion.span key={String(an)} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="inline-block">{an ? textAn : text}</motion.span>
     </button>
-  );
-}
-function Fortschritt({ hab, von, titel }: { hab: number; von: number; titel: string }) {
-  const p = von ? (hab / von) * 100 : 0;
-  return (
-    <div className="min-w-[220px]">
-      <div className="flex justify-between text-xs"><span className="font-semibold text-white/60">{titel}</span><span className="font-bold tabular-nums text-white">{hab} / {von}</span></div>
-      <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/10"><motion.div className="h-full rounded-full bg-gradient-to-r from-akz to-emerald-300" initial={{ width: 0 }} animate={{ width: `${p}%` }} transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }} /></div>
-    </div>
   );
 }
 const RASTER = 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8';
@@ -389,6 +380,11 @@ function WieBekommen({ t, zu, passEnde, shopBis, redaktion }: { t: Teil | null; 
 }
 
 interface Gratis { id: string; titel: string; text: string; bis?: string; bild?: string; quelle?: string; teile?: string[] }
+/*
+ * Free Cosmetics (Design 3.0, neu komponiert 28.11.2026): eine Abhakliste. Links klebt das Pult - Ring "Claimed", Restzeit der Freistufe,
+ * die Quellen als Liste mit Zahl (zugleich Filter) und "Hide what I've claimed"; rechts die zeitlich begrenzten Redaktions-Eintraege und
+ * darunter die gewaehlten Quellen als gleich grosse Kacheln. Klick auf ein Teil oeffnet "How to get it".
+ */
 export function GratisKosmetik() {
   const { teile, laedt, nr } = useSaisonTeile();
   const { s } = useSaison();
@@ -397,6 +393,7 @@ export function GratisKosmetik() {
   const erledigt = useAblage<string[]>('gratis-erledigt', []);
   const [ausblenden, setAusblenden] = useState(false);
   const [offen, setOffen] = useState<Teil | null>(null);
+  const [quelleWahl, setQuelleWahl] = useState('alle');
   const jetzt = useJetzt(60_000);
   const d = useMemo(() => {
     const hat = (t: Teil, re: RegExp) => (t.herkunft ?? []).some((h) => re.test(h));
@@ -408,52 +405,89 @@ export function GratisKosmetik() {
     return { frei, quest, event, turnier };
   }, [teile, nr]);
   const gratisShop = useMemo(() => shop.angebote.filter((a) => a.preis === 0).flatMap((a) => a.teile.map((t) => ({ t, bis: a.bis }))), [shop.angebote]);
-  const abschnitte: Array<{ titel: string; text: string; liste: Teil[]; bis?: number; marke: string }> = [
-    { titel: 'Free pass rewards', text: `Free tier of this season's pass – claim before ${datumKurz(s.end)}.`, liste: d.frei, bis: Date.parse(s.end), marke: 'Free tier' },
-    { titel: 'Quest rewards', text: 'Unlocked by completing quests – no V-Bucks needed.', liste: d.quest, marke: 'Quest' },
-    { titel: 'Events & promotions', text: 'Added in the last 120 days for events, promos and challenges.', liste: d.event, marke: 'Event' },
-    { titel: 'Tournament rewards', text: 'Earned by playing cups and FNCS – see the Tournaments page for times.', liste: d.turnier, marke: 'Tournament' },
+  const abschnitte: Array<{ k: string; titel: string; text: string; liste: Teil[]; bis?: number; marke: string; shop?: boolean }> = [
+    { k: 'shop', titel: 'Free in the shop today', text: 'Costs 0 V-Bucks – claim it before it leaves.', liste: gratisShop.map((x) => x.t), marke: 'Free', shop: true },
+    { k: 'frei', titel: 'Free pass rewards', text: `Free tier of this season's pass – claim before ${datumKurz(s.end)}.`, liste: d.frei, bis: Date.parse(s.end), marke: 'Free tier' },
+    { k: 'quest', titel: 'Quest rewards', text: 'Unlocked by completing quests – no V-Bucks needed.', liste: d.quest, marke: 'Quest' },
+    { k: 'event', titel: 'Events & promotions', text: 'Added in the last 120 days for events, promos and challenges.', liste: d.event, marke: 'Event' },
+    { k: 'turnier', titel: 'Tournament rewards', text: 'Earned by playing cups and FNCS – see the Tournaments page for times.', liste: d.turnier, marke: 'Tournament' },
   ];
-  const alle = [...gratisShop.map((x) => x.t), ...abschnitte.flatMap((a) => a.liste)];
+  const alle = abschnitte.flatMap((a) => a.liste);
   const fertig = alle.filter((t) => erledigt.wert.includes(t.id)).length;
   const umschalten = (id: string) => erledigt.setzen((v) => (v.includes(id) ? v.filter((x) => x !== id) : [...v, id]));
   const sicht = (l: Teil[]) => (ausblenden ? l.filter((t) => !erledigt.wert.includes(t.id)) : l);
   const eigene = (daten?.eintraege ?? []).filter((e) => !e.bis || Date.parse(e.bis) > jetzt);
+  const gezeigt = abschnitte.filter((a) => a.liste.length && (quelleWahl === 'alle' || quelleWahl === a.k));
   return (
-    <div className="space-y-8">
-      <SeitenKopf klein ueber="Community · Cosmetics" titel="Free cosmetics" text="Everything you can get without spending V-Bucks right now – from the pass's free tier, quests, events, tournaments and free shop offers."
-        rechts={<div className="flex gap-2"><AblageHinweis ort={erledigt.ort} /><LinkKopieren /></div>} />
-      <ZahlenLeiste werte={[['Free items found', <Zahl key="a" wert={alle.length} />], ['Claimed by you', <Zahl key="b" wert={fertig} />], ['Free in the shop today', <Zahl key="c" wert={gratisShop.length} />], ['Free tier ends in', dauer(Date.parse(s.end) - jetzt)]]} />
-      <div className="flex flex-wrap items-center gap-4"><Schalter titel="Hide what I've claimed" an={ausblenden} setzen={setAusblenden} /><Fortschritt hab={fertig} von={alle.length} titel="Claimed" /></div>
-      {eigene.length > 0 && (
-        <Bereich titel="Limited-time free rewards">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {eigene.map((e, i) => (
-              <Flaeche fest key={e.id} className="p-5" verz={i * 0.04}>
-                <h3 className="text-lg font-extrabold text-white">{e.titel}</h3>
-                {e.bis && <p className="text-xs font-semibold text-amber-200/80">{restText(Date.parse(e.bis) - jetzt)} left · ends {datumKurz(e.bis)}</p>}
-                <p className="mt-1.5 text-sm text-white/60">{e.text}</p>
-                <div className="mt-3 flex items-center justify-between">{e.quelle ? <a href={e.quelle} target="_blank" rel="noreferrer" className="text-xs font-semibold text-akz">Source ↗</a> : <span />}
-                  <button type="button" onClick={() => umschalten(e.id)} className={`rounded-xl px-3 py-1.5 text-xs font-bold ${erledigt.wert.includes(e.id) ? 'bg-emerald-400 text-[#06080f]' : 'border border-white/10 text-white/75'}`}>{erledigt.wert.includes(e.id) ? '✓ Completed' : 'Mark as completed'}</button></div>
-              </Flaeche>
-            ))}
+    <div className="space-y-6">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div><p className="ueber">Community · Cosmetics</p><h1 className="titel mt-1 text-6xl lg:text-7xl">Free cosmetics</h1>
+          <p className="mt-1 max-w-2xl text-[15px] text-white/55">Everything you can get without spending V-Bucks right now. Click any item to see how to get it.</p></div>
+        <LinkKopieren />
+      </header>
+      <div className="grid gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+        {/* ------------------------------------------------ Pult (klebt) */}
+        <Flaeche fest className="space-y-5 p-5 lg:sticky lg:top-[7.5rem]">
+          <div className="flex items-center gap-4">
+            <Ring hab={fertig} von={alle.length} titel="Claimed" groesse={120} />
+            <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-white/45">Free tier ends in</p><p className="titel zahl text-3xl text-akz">{dauer(Date.parse(s.end) - jetzt)}</p></div>
           </div>
-        </Bereich>
-      )}
-      {gratisShop.length > 0 && (
-        <Bereich titel={<>Free in the shop today <span className="text-sm font-semibold text-white/40">{gratisShop.length}</span></>}>
-          <div className={RASTER}>{sicht(gratisShop.map((x) => x.t)).map((t, i) => <Kachel key={t.id} t={t} index={i} beiKlick={() => setOffen(t)} unten={<><p className="mt-1 text-[10px] font-semibold text-emerald-300/80">Free · {restText(Date.parse(gratisShop.find((x) => x.t.id === t.id)!.bis) - jetzt)} left</p><Merker an={erledigt.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as claimed" textAn="✓ Claimed" /></>} />)}</div>
-        </Bereich>
-      )}
-      {laedt && <Laedt text="Looking for free rewards in the files" />}
-      {abschnitte.filter((a) => a.liste.length).map((a, k) => (
-        <Bereich key={a.titel} verzoegerung={k * 0.04} titel={<>{a.titel} <span className="text-sm font-semibold text-white/40">{a.liste.length}</span></>} rechts={<span className="text-xs text-white/40">{a.text}</span>}>
-          <div className={RASTER}>{sicht(a.liste).slice(0, 48).map((t, i) => <Kachel key={t.id} t={t} index={i} beiKlick={() => setOffen(t)} unten={<><p className="mt-1 text-[10px] font-semibold text-akz/70">{a.marke}{a.bis ? ` · ${restText(a.bis - jetzt)} left` : ` · ${datumKurz(t.hinzu)}`}</p><Merker an={erledigt.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as claimed" textAn="✓ Claimed" /></>} />)}</div>
-        </Bereich>
-      ))}
-      <Hinweis mehr={<>Twitch drops, Fortnite Crew perks and one-off promotions aren't marked in the game data, so they only show up here when CompHub adds them by hand.</>}>
-        Free rewards are found through the game's own source tags (free pass tier, quest, event, tournament). Click any item to see how to get it.
-      </Hinweis>
+          <nav className="space-y-1">
+            {[{ k: 'alle', titel: 'All free items', n: alle.length }, ...abschnitte.map((a) => ({ k: a.k, titel: a.titel, n: a.liste.length }))].map((q) => (
+              <button key={q.k} type="button" disabled={q.k !== 'alle' && !q.n} onClick={() => setQuelleWahl(q.k)}
+                className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2 text-left text-sm transition disabled:opacity-35 ${quelleWahl === q.k ? 'bg-akz/15 font-bold text-white ring-1 ring-akz/40' : 'text-white/65 hover:bg-white/[0.04] hover:text-white'}`}>
+                <span className="truncate">{q.titel}</span><span className="zahl text-xs text-white/45">{laedt && q.k !== 'shop' ? '…' : q.n}</span>
+              </button>
+            ))}
+          </nav>
+          <Schalter titel="Hide what I've claimed" an={ausblenden} setzen={setAusblenden} />
+          <AblageHinweis ort={erledigt.ort} />
+        </Flaeche>
+
+        <div className="min-w-0 space-y-7">
+          {eigene.length > 0 && (
+            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              {eigene.map((e, i) => (
+                <Flaeche fest key={e.id} className="flex flex-col overflow-hidden" verz={i * 0.04}>
+                  {e.bild && <div className="relative aspect-video"><Bild src={e.bild} className="absolute inset-0 h-full w-full" /></div>}
+                  <div className="flex flex-1 flex-col p-5">
+                    <p className="ueber">Limited time</p>
+                    <h3 className="mt-1 text-lg font-extrabold text-white">{e.titel}</h3>
+                    {e.bis && <p className="text-xs font-semibold text-amber-200/80">{restText(Date.parse(e.bis) - jetzt)} left · ends {datumKurz(e.bis)}</p>}
+                    <p className="mt-1.5 text-sm text-white/60">{e.text}</p>
+                    <div className="mt-auto flex items-center justify-between pt-3">{e.quelle ? <a href={e.quelle} target="_blank" rel="noreferrer" className="text-xs font-semibold text-akz">Source ↗</a> : <span />}
+                      <button type="button" onClick={() => umschalten(e.id)} className={`rounded-xl px-3 py-1.5 text-xs font-bold ${erledigt.wert.includes(e.id) ? 'bg-emerald-400 text-[#06080f]' : 'border border-white/10 text-white/75'}`}>{erledigt.wert.includes(e.id) ? '✓ Completed' : 'Mark as completed'}</button></div>
+                  </div>
+                </Flaeche>
+              ))}
+            </div>
+          )}
+          {laedt && <Laedt text="Looking for free rewards in the files" />}
+          {gezeigt.map((a) => {
+            const l = sicht(a.liste);
+            return (
+              <section key={a.k} className="space-y-3">
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div className="flex items-center gap-3"><span className="h-6 w-1 rounded-full bg-akz shadow-[0_0_14px_rgb(var(--akz)/0.8)]" /><h2 className="titel text-3xl">{a.titel} <span className="zahl text-base text-white/40">{a.liste.length}</span></h2></div>
+                  <span className="text-xs text-white/40">{a.text}</span>
+                </div>
+                {!l.length ? <p className="text-sm text-white/40">All claimed here.</p> : (
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-7">
+                    {(quelleWahl === 'alle' ? l.slice(0, 48) : l).map((t, i) => {
+                      const bis = a.shop ? Date.parse(gratisShop.find((x) => x.t.id === t.id)!.bis) : a.bis;
+                      return <Kachel key={t.id} t={t} index={i} beiKlick={() => setOffen(t)} unten={<><p className="mt-1 truncate text-[10px] font-semibold text-akz/70">{a.marke}{bis ? ` · ${restText(bis - jetzt)} left` : ` · ${datumKurz(t.hinzu)}`}</p><Merker an={erledigt.wert.includes(t.id)} setzen={() => umschalten(t.id)} text="Mark as claimed" textAn="✓ Claimed" /></>} />;
+                    })}
+                  </div>
+                )}
+                {quelleWahl === 'alle' && l.length > 48 && <button type="button" onClick={() => setQuelleWahl(a.k)} className="knopf-leer">All {l.length} {a.titel.toLowerCase()} →</button>}
+              </section>
+            );
+          })}
+          <Hinweis mehr={<>Twitch drops, Fortnite Crew perks and one-off promotions aren't marked in the game data, so they only show up here when CompHub adds them by hand.</>}>
+            Free rewards are found through the game's own source tags (free pass tier, quest, event, tournament). Click any item to see how to get it.
+          </Hinweis>
+        </div>
+      </div>
       <WieBekommen t={offen} zu={() => setOffen(null)} passEnde={s.end} shopBis={offen ? gratisShop.find((x) => x.t.id === offen.id)?.bis : undefined}
         redaktion={offen ? (daten?.eintraege ?? []).find((e) => e.teile?.some((id) => id.toLowerCase() === offen.id.toLowerCase())) : undefined} />
     </div>
