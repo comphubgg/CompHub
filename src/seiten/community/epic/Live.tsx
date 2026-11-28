@@ -39,7 +39,11 @@ export function Spielerzahl() {
   const liste = nachSicht(r.liste, sicht);
   const teil = liste.reduce((s, e) => s + e.spieler, 0);
   const mitVerlauf = liste.slice(0, 8).filter((e) => e.serie.length > 2);
-  const creators = useMemo(() => creatorsAus(r.liste).filter((c) => !c.epic).slice(0, 5), [r.liste]);
+  const creators = useMemo(() => creatorsAus(r.liste).slice(0, 6), [r.liste]);
+  const oben = new Set(liste.slice(0, 3).map((e) => e.code));
+  // Ohne Stundenwerte zeigt die Buehne rechts die Plaetze 4-9 als Bilder; die Rangliste beginnt dann bei 10 (kein Bild doppelt)
+  const ohneDiagramm = mitVerlauf.length < 2;
+  const ab = ohneDiagramm ? 9 : 3;
   return (
     <div className="space-y-7">
       <SeitenKopf klein ueber="Live · Player count" titel="Who plays what right now" rechts={<><Segment id="pc-sicht" wert={sicht} wahl={SICHT} onWahl={(k) => { setSicht(k); setN(30); }} /><LinkKopieren /></>} />
@@ -64,7 +68,7 @@ export function Spielerzahl() {
             </div>
           </div>
           <div className="border-t border-white/[0.06] p-6 lg:border-l lg:border-t-0 lg:p-7">
-            <div className="mb-3 flex items-baseline justify-between gap-3"><p className="text-sm font-bold text-white">The {mitVerlauf.length || 6} biggest{mitVerlauf.length >= 2 ? ' · last 24 hours' : ''}</p><p className="text-xs text-white/40">{mitVerlauf.length >= 2 ? 'players per hour, stacked' : 'players right now'}</p></div>
+            <div className="mb-3 flex items-baseline justify-between gap-3"><p className="text-sm font-bold text-white">{mitVerlauf.length >= 2 ? `The ${mitVerlauf.length} biggest · last 24 hours` : 'Places 4 – 9'}</p><p className="text-xs text-white/40">{mitVerlauf.length >= 2 ? 'players per hour, stacked' : 'players right now'}</p></div>
             {mitVerlauf.length >= 2 ? (
               <>
                 <div className="pb-5"><Verlauf gestapelt hoehe={290} serien={[...mitVerlauf].reverse().map((e) => ({ name: e.titel, farbe: FARBEN[mitVerlauf.indexOf(e)], punkte: e.serie }))} /></div>
@@ -73,11 +77,11 @@ export function Spielerzahl() {
             ) : (
               /* Ohne Stundenwerte: die sechs groessten als Bilder statt eines leeren Diagramms */
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {liste.slice(0, 6).map((e, k) => (
+                {liste.slice(3, 9).map((e, k) => (
                   <Link key={e.code} to={inselPfad(e.code)} className="group relative aspect-video overflow-hidden rounded-2xl">
                     <InselBild code={e.code} bild={e.bild} className="absolute inset-0 transition duration-700 group-hover:scale-105" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
-                    <span className="titel absolute left-2.5 top-1.5 text-2xl">{k + 1}</span>
+                    <span className="titel absolute left-2.5 top-1.5 text-2xl">{k + 4}</span>
                     <p className="absolute inset-x-2.5 bottom-2 truncate text-xs font-bold text-white">{e.titel} <span className="zahl font-semibold text-akz">{kurz(e.spieler)}</span></p>
                   </Link>
                 ))}
@@ -105,11 +109,11 @@ export function Spielerzahl() {
         <Flaeche fest className="overflow-hidden">
           <div className="flex items-baseline justify-between gap-3 px-5 pb-2 pt-5"><h2 className="titel text-3xl">Ranking</h2><p className="text-xs text-white/40">{liste.length.toLocaleString('en')} {sicht === 'epic' ? 'Epic modes' : sicht === 'creator' ? 'creator islands' : 'modes and islands'} · {kurz(teil)} players</p></div>
           <ol>
-            {liste.slice(3, n).map((e, k) => (
+            {liste.slice(ab, n).map((e, k) => (
               <li key={e.code} className="border-t border-white/[0.05]">
                 <Link to={inselPfad(e.code)} className="group relative flex items-center gap-3 px-4 py-2.5 transition hover:bg-white/[0.035] sm:gap-4 sm:px-5">
                   <AnteilLinie anteil={e.spieler / (liste[0]?.spieler || 1)} />
-                  <span className="zahl w-7 shrink-0 text-right text-sm font-bold text-white/40">{k + 4}</span>
+                  <span className="zahl w-7 shrink-0 text-right text-sm font-bold text-white/40">{k + ab + 1}</span>
                   <span className="relative h-11 w-20 shrink-0 overflow-hidden rounded-lg"><InselBild code={e.code} bild={e.bild} className="absolute inset-0" /></span>
                   <span className="min-w-0 flex-1"><span className="block truncate font-bold text-white group-hover:text-akz">{e.titel}</span><span className="block truncate text-xs text-white/45">{vonWem(e)}</span></span>
                   <span className="hidden w-28 shrink-0 md:block"><MiniVerlauf punkte={e.serie} farbe="rgb(45 212 191)" hoehe={26} /></span>
@@ -130,8 +134,8 @@ export function Spielerzahl() {
               {creators.map((c, k) => (
                 <li key={c.name}><Link to={`/community/creators?c=${encodeURIComponent(c.name)}`} className="group flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white/[0.04]">
                   <span className="zahl w-5 text-right text-xs font-bold text-white/40">{k + 1}</span>
-                  <span className="relative h-9 w-16 shrink-0 overflow-hidden rounded-md"><InselBild code={c.inseln[0].code} bild={c.inseln[0].bild} className="absolute inset-0" /></span>
-                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-white group-hover:text-akz">@{c.name}</span><span className="block truncate text-[11px] text-white/40">{c.inseln.length} island{c.inseln.length === 1 ? '' : 's'}</span></span>
+                  <span className="relative h-9 w-16 shrink-0 overflow-hidden rounded-md">{(() => { const i = c.inseln.find((x) => !oben.has(x.code)) ?? c.inseln[0]; return <InselBild code={i.code} bild={i.bild} className="absolute inset-0" />; })()}</span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-bold text-white group-hover:text-akz">{c.epic ? c.name : `@${c.name}`}</span><span className="block truncate text-[11px] text-white/40">{c.inseln.length} {c.epic ? 'mode' : 'island'}{c.inseln.length === 1 ? '' : 's'}</span></span>
                   <span className="zahl text-sm font-extrabold text-white">{kurz(c.spieler)}</span>
                 </Link></li>
               ))}

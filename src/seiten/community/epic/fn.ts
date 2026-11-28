@@ -54,7 +54,9 @@ async function entdeckenLaden() {
   if (entdecken.status === 'laedt') return;
   const erst = entdecken.status === 'neu'; if (erst) entdecken.status = 'laedt';
   entdecken.zeit = Date.now();
-  const j = (await jsonHolen('/api/fn-entdecken?verlauf=1')) as { stand?: number | string } | null;
+  // Liste und Stundenverlauf kommen getrennt (?verlauf=1 liefert nur { stand, verlauf }) - beides parallel holen und zusammenlegen
+  const [liste, verl] = (await Promise.all([jsonHolen('/api/fn-entdecken'), jsonHolen('/api/fn-entdecken?verlauf=1')])) as Array<{ stand?: number | string; eintraege?: unknown[]; verlauf?: unknown } | null>;
+  const j = liste?.eintraege?.length ? { ...liste, verlauf: liste.verlauf ?? verl?.verlauf } : verl;
   const l = j ? eintraegeAus(j) : [];
   if (l.length) { entdecken.daten = l; entdecken.stand = typeof j?.stand === 'number' ? j.stand : Date.parse(String(j?.stand ?? '')) || Date.now(); entdecken.status = 'da'; }
   else if (!entdecken.daten) entdecken.status = 'fehlt';
