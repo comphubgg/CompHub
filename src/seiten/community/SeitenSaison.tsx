@@ -1,14 +1,12 @@
-import { motion } from 'framer-motion';
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Glas } from '../../teile/Glas';
-import { Countdown, DatenFehlen, Hinweis, KalenderKnopf, LinkKopieren, restText, useHubDatei, useJetzt } from './Bausteine';
-import { Laedt, TEAL, Ueberschrift } from './Teile';
+import { useHubDatei, useJetzt } from './Bausteine';
+import { TEAL, Ueberschrift } from './Teile';
 import { useAblage } from './kosmetik/daten';
 import { AblageHinweis } from './kosmetik/Raster';
-import { RotationLive } from './epic/Rotation';
 
 /*
- * Saison-Seiten: XP Calculator, Map Rotation (Season Countdown: SaisonSeite.tsx).
+ * Saison-Seiten: XP Calculator (Season Countdown: SaisonSeite.tsx, Map Rotation: RotationSeite.tsx).
  *
  * Saison-Stand: fest hier (wie in der Uebersicht - Betreiber 26.11.2026: neues Chapter am 5. Dezember, Uhrzeit Epics uebliche Wartung, nicht
  * bestaetigt) und ueberschreibbar per /hub-daten/saison.json:
@@ -112,89 +110,4 @@ export function XpRechner() {
   );
 }
 
-/* ---------------------------------------------- Map Rotation */
-interface Rotation { modes: Record<string, { anchor: string; slotMinutes: number; maps: Array<{ name: string; image?: string }> }> }
-export function KartenRotation() {
-  const { daten, status } = useHubDatei<Rotation>('rotation.json');
-  const jetzt = useJetzt();
-  const modi = Object.keys(daten?.modes ?? {});
-  const [modus, setModus] = useState<string | null>(null);
-  const m = modus ?? modi[0];
-  const plan = useMemo(() => {
-    const r = m ? daten?.modes[m] : undefined;
-    if (!r?.maps?.length) return null;
-    const slot = (r.slotMinutes || 20) * 60_000; const anker = Date.parse(r.anchor);
-    const k = Math.floor((jetzt - anker) / slot);
-    return Array.from({ length: Math.min(r.maps.length, 8) }, (_, i) => {
-      const n = k + i; const karte = r.maps[((n % r.maps.length) + r.maps.length) % r.maps.length];
-      return { karte, start: anker + n * slot, ende: anker + (n + 1) * slot };
-    });
-  }, [daten, m, jetzt]);
-  const uhr = (t: number) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  // Bilder der Reload-Inseln aus den Spieldateien (wie in der Uebersicht): /api/karten-bild
-  const [bilder, setBilder] = useState<Array<{ id: string; name: string }>>([]);
-  const [liveNamen, setLiveNamen] = useState<string[]>([]); // diese Bilder stehen schon oben - nicht doppelt zeigen
-  useEffect(() => {
-    fetch('/api/karten-bild').then((r) => r.json()).then((j) => setBilder(((j?.karten ?? []) as Array<{ id: string; titel: string }>).filter((k) => k.id.startsWith('reload-') && !/-(png|nah)$/.test(k.id)).map((k) => ({ id: k.id, name: k.titel.replace(/^Reload - /, '') })))).catch(() => {});
-  }, []);
-  if (status === 'laedt') return <Laedt farbe={TEAL} />;
-  return (
-    <div className="space-y-6">
-      <Ueberschrift ueber="Community · Island" titel="Map rotation" farbe={TEAL} text="Which map is live in Reload and Blitz right now – and what's next. Times in your time zone." />
-      {!plan ? (
-        <>
-          <RotationLive bilder={bilder} live={setLiveNamen} />
-          {bilder.length > 0 && (
-            <section className="space-y-3">
-              <h2 className="text-2xl font-extrabold tracking-tight text-white">Reload islands</h2>
-              <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-6">
-                {bilder.filter((b) => !liveNamen.includes(b.name.toLowerCase())).map((b, i) => (
-                  <motion.div key={b.id} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 12) * 0.04 }} whileHover={{ y: -5 }} className="group relative aspect-square overflow-hidden rounded-3xl border border-white/10 bg-[#0a1a2a]">
-                    <img src={`/api/karten-bild?id=${encodeURIComponent(b.id)}&datei=1`} alt={b.name} loading="lazy" className="h-full w-full object-cover transition duration-700 group-hover:scale-110" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-transparent to-transparent" />
-                    <p className="absolute bottom-3 left-4 font-extrabold text-white">{b.name}</p>
-                  </motion.div>
-                ))}
-              </div>
-            </section>
-          )}
-          <Hinweis mehr={<>Epic rotates Reload and Blitz maps on a fixed clock but doesn't publish the order. With the order and one known start time in <code className="text-teal-200">hub-daten/rotation.json</code>, this page also shows exact countdowns and what's up next.</>}>
-            Live map detection from Epic's player numbers – exact "up next" times need the rotation schedule.
-          </Hinweis>
-        </>
-      ) : (
-        <>
-          <div className="inline-flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-sm font-bold">
-            {modi.map((k) => <button key={k} type="button" onClick={() => setModus(k)} className={`rounded-lg px-4 py-1.5 capitalize ${m === k ? 'bg-teal-300 text-[#06080f]' : 'text-white/55 hover:text-white'}`}>{k}</button>)}
-          </div>
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-            {plan.slice(0, 2).map((p, i) => (
-              <Glas key={i} className="relative overflow-hidden" verzoegerung={i * 0.06}>
-                <div className="relative aspect-video">
-                  {p.karte.image ? <img src={p.karte.image} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <div className="absolute inset-0 bg-gradient-to-br from-teal-500/20 to-violet-500/10" />}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#06080f] via-[#06080f]/40 to-transparent" />
-                  <div className="absolute bottom-0 p-6">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-teal-300">{i ? 'Up next' : 'Current rotation'}</p>
-                    <h2 className={`font-black tracking-tight text-white ${i ? 'text-3xl' : 'text-5xl'}`}>{p.karte.name}</h2>
-                    <p className="text-sm text-white/60">{uhr(p.start)} – {uhr(p.ende)}</p>
-                    {!i && <p className="mt-2 text-4xl font-black tabular-nums text-teal-300">{restText(p.ende - jetzt)} <span className="text-sm font-semibold text-white/45">remaining</span></p>}
-                  </div>
-                </div>
-              </Glas>
-            ))}
-          </div>
-          <Glas className="divide-y divide-white/5">
-            {plan.map((p, i) => (
-              <div key={i} className={`flex items-center gap-4 px-5 py-3 ${i ? '' : 'bg-teal-300/[0.06]'}`}>
-                <span className="w-6 text-sm font-bold text-white/40">{i + 1}</span>
-                <span className="flex-1 font-semibold text-white">{p.karte.name}</span>
-                <span className="text-sm text-white/55">{i ? `Starts in ${restText(p.start - jetzt)}` : `Live · ${restText(p.ende - jetzt)}`}</span>
-                <span className="w-28 text-right text-sm tabular-nums text-white/45">{uhr(p.start)} – {uhr(p.ende)}</span>
-              </div>
-            ))}
-          </Glas>
-        </>
-      )}
-    </div>
-  );
-}
+/* Map Rotation: RotationSeite.tsx (Design 3.0) */

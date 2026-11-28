@@ -2,7 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Laedt, TEAL } from './Teile';
 import Uebersicht from './Uebersicht';
-import { KartenRotation, XpRechner } from './SeitenSaison';
+import { XpRechner } from './SeitenSaison';
 import { Benachrichtigungen, News, Stats, Turniere } from './SeitenLive';
 
 // Kosmetik, persoenliche Listen und die uebrigen Menuepunkte der Spezifikation - je ein eigener Chunk (src/seiten/community/kosmetik).
@@ -14,13 +14,15 @@ const Creative = lazy(() => import('./epic/Live').then((m) => ({ default: m.Crea
 const InselDetail = lazy(() => import('./epic/Insel').then((m) => ({ default: m.InselDetail })));
 // Season (Design 3.0) - laedt Kosmetik und News von fortnite-api.com, deshalb eigener Chunk
 const SaisonSeite = lazy(() => import('./SaisonSeite'));
+// Map Rotation (Design 3.0)
+const RotationSeite = lazy(() => import('./RotationSeite'));
 const L = ({ c }: { c: ReactNode }) => <Suspense fallback={<Laedt farbe={TEAL} />}>{c}</Suspense>;
 
 /* Die kleineren Community-Seiten (eigener Chunk, damit die Karte und die Waffen nicht mitgeladen werden muessen). */
 export default function Seiten() {
   return (
     <Routes>
-      <Route path="rotation" element={<KartenRotation />} />
+      <Route path="rotation" element={<L c={<RotationSeite />} />} />
       <Route path="season" element={<L c={<SaisonSeite />} />} />
       <Route path="xp" element={<XpRechner />} />
       <Route path="players" element={<L c={<Spielerzahl />} />} />
