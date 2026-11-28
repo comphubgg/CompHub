@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Countdown, Hinweis, LinkKopieren, restText, useHubDatei, useJetzt } from '../Bausteine';
-import { dauer, Flaeche, Laedt, SeitenKopf } from '../../../ds/Bausteine';
+import { dauer, Flaeche, Laedt, Leer, Segment, SeitenKopf } from '../../../ds/Bausteine';
 import { useSaison } from '../SeitenSaison';
 import { Zahl } from '../epic/Diagramm';
 import { datumKurz, holen, REITER, seltenVon, useAblage, useShop, useTeile, type Teil } from './daten';
@@ -402,8 +402,32 @@ export function GratisKosmetik() {
   );
 }
 
-/* ================================================================== Most Used (ehrlicher Ersatz; Betreiber: Name wie bei fortnite.gg, Balken nur als feine Linie) */
+/* ================================================================== Most Used (Design 3.0, neu komponiert 28.11.2026)
+ * Ehrlicher Ersatz (Epic veroeffentlicht keine Nutzungszahlen): am haeufigsten im Shop gesehen. Neu: Bento statt Podest + Liste -
+ * Platz 1 als grosse Buehne, 2-5 als vier kleinere Buehnen daneben, ab Platz 6 gleich grosse Kacheln mit Rang und feiner Tageslinie.
+ */
 const MEIST_TYPEN = [['outfit', 'Outfits'], ['emote', 'Emotes'], ['pickaxe', 'Pickaxes'], ['backpack', 'Back Blings'], ['glider', 'Gliders'], ['wrap', 'Wraps']] as const;
+function MeistBuehne({ t, n, platz, gross = false, verz = 0 }: { t: Teil; n: number; platz: number; gross?: boolean; verz?: number }) {
+  const s = seltenVon(t.selten);
+  return (
+    <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: verz, duration: 0.45, ease: [0.22, 1, 0.36, 1] }} className="h-full">
+      <Link to={`/community/cosmetics/${encodeURIComponent(t.id)}`} className={`fl-fest fl-klick group relative isolate flex h-full overflow-hidden ${gross ? 'min-h-[420px] lg:min-h-[520px]' : 'min-h-[200px] lg:min-h-0'}`}>
+        <div className="absolute inset-0 -z-20" style={{ background: `radial-gradient(90% 100% at 70% 30%, ${s.a}77, ${s.b} 60%, #04050a)` }} />
+        <img src={gross ? t.bildGross || t.bild : t.bild} alt="" className={`absolute -z-10 object-contain transition duration-700 group-hover:scale-[1.05] ${gross ? 'inset-y-0 right-0 h-full w-[70%] object-right-bottom' : 'bottom-0 right-0 h-[88%] w-[60%] object-right-bottom'}`} />
+        <div className="absolute inset-0 -z-10 bg-gradient-to-r from-[#04050a]/85 via-[#04050a]/30 to-transparent" />
+        <div className="flex flex-col justify-between p-5 lg:p-6">
+          <span className={`titel zahl text-white/90 ${gross ? 'text-9xl' : 'text-6xl'}`}>{String(platz).padStart(2, '0')}</span>
+          <div>
+            <p className={`titel zahl text-akz ${gross ? 'text-7xl' : 'text-4xl'}`}><Zahl wert={n} /></p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/50">days in the shop</p>
+            <p className={`mt-2 font-extrabold text-white group-hover:text-akz ${gross ? 'text-3xl' : 'text-lg'}`}>{t.name}</p>
+            <p className="text-xs font-semibold" style={{ color: s.a }}>{t.seltenName} {t.typName}</p>
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+}
 export function MeistGenutzt() {
   const { teile, laedt } = useTeile(['br']);
   const [typ, setTyp] = useState<string>('outfit');
@@ -417,57 +441,55 @@ export function MeistGenutzt() {
   const titel = REITER.find((r) => r.k === typ)?.titel ?? MEIST_TYPEN.find(([k]) => k === typ)?.[1];
   return (
     <div className="space-y-6">
-      <SeitenKopf klein ueber="Community · Cosmetics" titel="Most used" text="The cosmetics the item shop shows the most – the closest honest proxy for what you meet on the island." rechts={<LinkKopieren />} />
-      <Hinweis mehr={<>Epic doesn't publish what players wear, and we won't guess. Our tournament replays contain every player's outfit, so a real "Most used in pro play" list can come from the replay parser – this page then switches to it.</>}>
-        <b className="text-white/70">Not usage numbers:</b> ranked by days in the item shop{zeit === '365' ? ' over the last 12 months' : ' since the shop began'}.
-      </Hinweis>
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex flex-wrap rounded-2xl border border-white/10 bg-black/30 p-1">
-          {MEIST_TYPEN.map(([k, t]) => (
-            <button key={k} type="button" onClick={() => setTyp(k)} className="relative rounded-xl px-3.5 py-1.5 text-sm font-bold">
-              {typ === k && <motion.span layoutId="meist-typ" className="absolute inset-0 rounded-xl bg-akz" />}<span className={`relative ${typ === k ? 'text-[#06080f]' : 'text-white/60 hover:text-white'}`}>{t}</span>
-            </button>
-          ))}
+      {/* Kopf und Umschalter in einem Band: Art links, Zeitraum rechts */}
+      <header className="space-y-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div><p className="ueber">Community · Cosmetics</p><h1 className="titel mt-1 text-6xl lg:text-7xl">Most used</h1>
+            <p className="mt-1 max-w-2xl text-[15px] text-white/55">What the item shop shows the most – the closest honest proxy for what you meet on the island.</p></div>
+          <LinkKopieren />
         </div>
-        <div className="inline-flex rounded-xl border border-white/10 bg-black/30 p-0.5 text-xs font-bold">
-          {([['365', 'Last 12 months'], ['alle', 'All time']] as const).map(([k, t]) => <button key={k} type="button" onClick={() => setZeit(k)} className={`rounded-lg px-3 py-1 ${zeit === k ? 'bg-white/15 text-white' : 'text-white/45 hover:text-white'}`}>{t}</button>)}
+        <div className="fl-fest flex flex-wrap items-center justify-between gap-3 p-2">
+          <div className="ohne-leiste max-w-full overflow-x-auto"><Segment id="meist-typ" wert={typ} onWahl={setTyp} wahl={MEIST_TYPEN.map(([k, t]) => ({ k, titel: t }))} /></div>
+          <Segment id="meist-zeit" klein wert={zeit} onWahl={setZeit} wahl={[{ k: '365', titel: 'Last 12 months' }, { k: 'alle', titel: 'All time' }]} />
         </div>
-      </div>
-      {laedt ? <Laedt text="Counting shop days" /> : (
+        <Hinweis mehr={<>Epic doesn't publish what players wear, and we won't guess. Our tournament replays contain every player's outfit, so a real "Most used in pro play" list can come from the replay parser – this page then switches to it.</>}>
+          <b className="text-white/70">Not usage numbers:</b> ranked by days in the item shop{zeit === '365' ? ' over the last 12 months' : ' since the shop began'}.
+        </Hinweis>
+      </header>
+      {laedt ? <Laedt text="Counting shop days" /> : !liste.length ? <Leer text="No shop days in this period." /> : (
         <>
-          <div className="grid gap-4 md:grid-cols-3">
-            {liste.slice(0, 3).map(({ t, n }, i) => {
-              const s = seltenVon(t.selten);
-              return (
-                <motion.div key={`${typ}-${t.id}`} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08, type: 'spring', stiffness: 260, damping: 26 }} whileHover={{ y: -5 }}>
-                  <Link to={`/community/cosmetics/${encodeURIComponent(t.id)}`} className="relative block overflow-hidden rounded-3xl border border-white/10" style={{ background: `radial-gradient(120% 90% at 50% 10%, ${s.a}55, ${s.b} 65%, #05070d)` }}>
-                    <span className="absolute left-4 top-4 z-10 grid h-11 w-11 place-items-center rounded-2xl bg-black/55 text-2xl font-black text-white backdrop-blur">{i + 1}</span>
-                    <div className="relative mx-auto aspect-square max-h-[320px]"><img src={t.bildGross || t.bild} alt="" className="h-full w-full object-contain" /></div>
-                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-4 pt-10">
-                      <p className="text-xl font-extrabold text-white">{t.name}</p>
-                      <p className="text-sm font-semibold" style={{ color: s.a }}><Zahl wert={n} /> days in the shop</p>
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
+          {/* Bento: 1 gross, 2-5 als Viererblock */}
+          <div key={`${typ}-${zeit}`} className="grid gap-4 lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+            <MeistBuehne t={liste[0].t} n={liste[0].n} platz={1} gross />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-rows-2">
+              {liste.slice(1, 5).map(({ t, n }, i) => <MeistBuehne key={t.id} t={t} n={n} platz={i + 2} verz={0.06 + i * 0.05} />)}
+            </div>
           </div>
-          <Flaeche fest className="p-4">
-            <h3 className="px-2 pb-2 font-bold text-white">{titel} · places 4–{liste.length}</h3>
-            <ol className="grid gap-x-6 gap-y-1 lg:grid-cols-2">
-              {liste.slice(3).map(({ t, n }, i) => (
-                <motion.li key={`${typ}-${t.id}`} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: Math.min(i, 30) * 0.015 }}>
-                  <Link to={`/community/cosmetics/${encodeURIComponent(t.id)}`} className="relative flex items-center gap-3 overflow-hidden rounded-xl px-2 py-1.5 hover:bg-white/[0.04]">
-                    <motion.span className="absolute bottom-0 left-2 h-[2px] rounded-full bg-akz/25" initial={{ width: 0 }} animate={{ width: `${(n / max) * 100}%` }} transition={{ duration: 0.7, delay: Math.min(i, 30) * 0.015 }} />
-                    <span className="relative w-6 text-right text-xs font-bold tabular-nums text-white/40">{i + 4}</span>
-                    <img src={t.bild} alt="" loading="lazy" className="relative h-9 w-9 rounded-lg object-contain" style={{ background: seltenVon(t.selten).b }} />
-                    <span className="relative min-w-0 flex-1 truncate text-sm font-bold text-white">{t.name}</span>
-                    <span className="relative text-sm font-black tabular-nums text-white">{n}</span><span className="relative text-[10px] text-white/40">days</span>
-                  </Link>
-                </motion.li>
-              ))}
-            </ol>
-          </Flaeche>
+          <section>
+            <div className="mb-3 flex items-end justify-between gap-3"><h2 className="titel text-3xl">{titel} · places 6–{liste.length}</h2><span className="text-xs text-white/40">days in the shop</span></div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10">
+              {liste.slice(5).map(({ t, n }, i) => {
+                const s = seltenVon(t.selten);
+                return (
+                  <motion.div key={`${typ}-${t.id}`} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 30) * 0.012 }}>
+                    <Link to={`/community/cosmetics/${encodeURIComponent(t.id)}`} className="fl-fest fl-klick group block overflow-hidden !rounded-2xl">
+                      <div className="relative aspect-square overflow-hidden" style={{ background: `radial-gradient(120% 90% at 50% 12%, ${s.a}55, ${s.b} 62%, #04050a)` }}>
+                        <img src={t.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-contain p-1 transition duration-500 group-hover:scale-[1.07]" />
+                        <span className="titel zahl absolute left-2 top-1.5 text-2xl text-white drop-shadow">{i + 6}</span>
+                      </div>
+                      <div className="px-2.5 pb-2.5 pt-2">
+                        <p className="truncate text-sm font-bold text-white group-hover:text-akz">{t.name}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/[0.07]"><motion.span className="block h-full rounded-full bg-akz/70" initial={{ width: 0 }} animate={{ width: `${(n / max) * 100}%` }} transition={{ duration: 0.7, delay: Math.min(i, 30) * 0.012 }} /></span>
+                          <span className="zahl text-xs font-black text-white">{n}</span>
+                        </div>
+                      </div>
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </section>
           <p className="text-[11px] text-white/30">Data: complete item-shop history from fortnite-api.com. More shop leaderboards in <Link to="/community/cosmetic-stats" className="text-akz/80">Cosmetic Stats</Link>.</p>
         </>
       )}
