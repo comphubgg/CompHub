@@ -133,12 +133,25 @@ if (probe) {
 }
 
 static double? R(double? v) => v.HasValue ? Math.Round(v.Value, 1) : null;
+// Ein Kosmetik-Gegenstand als kurze Kennung: der Leser liefert den Pfad des Assets ("/BRCosmetics/.../Character_Xyz.Character_Xyz"), gebraucht wird nur der Name dahinter.
+static string Kosmetik(string pfad) {
+  if (string.IsNullOrWhiteSpace(pfad)) return null;
+  var k = pfad[(pfad.LastIndexOf('/') + 1)..];
+  var pkt = k.LastIndexOf('.');
+  if (pkt >= 0 && pkt < k.Length - 1) k = k[(pkt + 1)..];
+  return k.Length > 0 ? k : null;
+}
 
+/*
+ * Die Kosmetik je Spieler (28.11.2026, fuer eine 3D-Ansicht mit den echten Skins): Outfit, Rucksack, Spitzhacke und Gleiter aus PlayerData.Cosmetics
+ * (die Bibliothek nimmt sie von der ersten Figur des Spielers). Fehlt etwas im Replay, bleibt das Feld weg - aeltere Auswertungen haben es ohnehin nicht.
+ */
 var spieler = replay.PlayerData.Select(p => new {
   id = p.Id, epic = p.EpicId?.ToLowerInvariant(), name = p.PlayerName, bot = p.IsBot ? true : (bool?)null,
   team = p.TeamIndex, platz = p.Placement, kills = p.Kills, teamKills = p.TeamKills,
   tod = R(p.DeathTimeDouble), todX = R(p.DeathLocation?.X), todY = R(p.DeathLocation?.Y),
   todUrsache = p.DeathCause, plattform = p.Platform, abbruch = p.Disconnected == true ? true : (bool?)null,
+  skin = Kosmetik(p.Cosmetics?.Character), rucksack = Kosmetik(p.Cosmetics?.Backpack), spitzhacke = Kosmetik(p.Cosmetics?.Pickaxe), gleiter = Kosmetik(p.Cosmetics?.Glider),
 }).ToList();
 
 var feed = replay.KillFeed.Select(k => new {
