@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Glas, flagge } from '../../teile/Glas';
+import { flagge } from '../../teile/Glas';
+import { Flaeche } from '../../ds/Bausteine';
 import { NurAdmins, WerkzeugKopf, feld, knopfHaupt, knopfLeise } from './teile';
 import { useWer } from '../../teile/Anmeldung';
 
@@ -10,6 +11,8 @@ import { useWer } from '../../teile/Anmeldung';
  *   GET  /api/spieler-profile                       - die frischen Eintraege darueber
  *   POST /api/spieler-profile { id, name, land, x, anzeige }
  *   POST /api/spielerbild/hochladen (FormData datei, epicId, name) - legt das Foto dauerhaft im GitHub-Archiv ab
+ * Design-System 3.0 (28.11.2026): oben die Abdeckung der Region (Flagge, @-Konto, Foto in Prozent - ein Klick filtert auf die fehlenden), darunter
+ * eine dichte Arbeitsliste (Hochkant-Foto nur, wo es eins gibt - nie Namen als Bildersatz) und rechts der feste Bearbeiter mit "Save and next".
  * Wie auf der Seite liegt jede Aenderung zuerst im Browser (localStorage, derselbe Schluessel) und wird alle 20 s erneut geschickt, bis der Server sie annimmt.
  */
 interface Spieler {
@@ -136,75 +139,103 @@ export default function Spieler({ klassisch }: { klassisch: () => void }) {
   const gewaehlt = offen ? alle.find((x) => x.epicId === offen) ?? null : null;
   const lq = landSuche.trim().toLowerCase();
   const landTreffer = FLAGGEN.filter((c) => !lq || c.includes(lq) || landName(c).toLowerCase().includes(lq));
-  const chip = (an: boolean) => `rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${an ? 'border-akz bg-akz text-[#06080f]' : 'border-white/10 bg-white/[0.03] text-white/60 hover:text-white'}`;
+  const chip = (an: boolean) => `chip ${an ? 'chip-an' : ''}`;
   const frueher = gewaehlt ? gewaehlt.namen.filter((n) => n !== gewaehlt.name && n !== gewaehlt.turniername) : [];
+  // Abdeckung der geladenen Region (ab der Mindestzahl an Matches): wie viele haben Flagge, @-Konto, Foto
+  const basis = alle.filter((x) => x.matches >= mindestens);
+  const anteil = (f: (x: Spieler) => boolean) => (basis.length ? basis.filter(f).length / basis.length : 0);
+  const deckung = [
+    { titel: 'Flag', wert: anteil((x) => !!x.land), fehlt: basis.filter((x) => !x.land).length, filterWert: 'ohneFlagge' as Filterart },
+    { titel: '@ account', wert: anteil((x) => !!x.x), fehlt: basis.filter((x) => !x.x).length, filterWert: 'ohneKonto' as Filterart },
+    { titel: 'Photo', wert: anteil((x) => !!x.foto), fehlt: basis.filter((x) => !x.foto).length, filterWert: 'ohneFoto' as Filterart },
+  ];
 
   return (
     <>
       {kopf}
       {wartend > 0 && (
-        <div className={`mb-4 rounded-2xl border px-4 py-3 text-sm ${sendeFehler ? 'border-rose-400/50 bg-rose-500/10 text-rose-100' : 'border-amber-400/40 bg-amber-400/10 text-amber-100'}`}>
+        <div className={`mb-4 rounded-2xl border bg-fl px-4 py-3 text-sm ${sendeFehler ? 'border-red-400/50 text-red-100' : 'border-akz/40 text-white/85'}`}>
           <b>{wartend} changes not saved yet.</b>{' '}
           {sendeFehler ? <>The server is not accepting them right now: {sendeFehler} They stay in this browser and are re-sent every 20 seconds, also after a reload.</> : 'Saving …'}
         </div>
       )}
-      <div className="mb-3 flex flex-wrap items-center gap-1.5">
-        {REGIONEN.map((r) => (
-          <button key={r} type="button" onClick={() => waehle(setRegion)(r)} className={chip(region === r)}>
-            {r === 'alle' ? 'All' : r}<span className="ml-1.5 font-normal tabular-nums opacity-70">{jeRegion[r] ?? '–'}</span>
-          </button>
+      <div className="mb-5 grid gap-3 md:grid-cols-3">
+        {deckung.map((d, i) => (
+          <motion.button key={d.titel} type="button" onClick={() => waehle(setFilter)(new Set([d.filterWert]))} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
+            className={`fl-fest fl-klick !rounded-2xl px-5 py-4 text-left ${filter.has(d.filterWert) && filter.size === 1 ? '!border-akz/50' : ''}`}>
+            <span className="flex items-baseline justify-between gap-3">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-white/45">{d.titel} · {region === 'alle' ? 'all regions' : region}</span>
+              <span className="text-xs text-white/45">{laedt ? '…' : `${zahl(d.fehlt)} missing →`}</span>
+            </span>
+            <span className="titel mt-1 block text-5xl">{laedt ? '–' : `${Math.round(d.wert * 100)}%`}</span>
+            <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-white/[0.06]"><motion.span initial={{ width: 0 }} animate={{ width: `${d.wert * 100}%` }} transition={{ duration: 0.8 }} className="block h-full rounded-full bg-akz" /></span>
+          </motion.button>
         ))}
-      </div>
-      <div className="mb-5 flex flex-wrap items-center gap-2">
-        <input value={suche} onChange={(e) => waehle(setSuche)(e.target.value)} placeholder="Name, old name or account ID" spellCheck={false} className={`${feld} w-72 max-w-full rounded-full`} />
-        <button type="button" onClick={() => waehle(setFilter)(new Set<Filterart>())} className={chip(!filter.size)}>all</button>
-        {FILTER.map((f) => (
-          <button key={f.wert} type="button" title="Shift-click to combine several" className={chip(filter.has(f.wert))}
-            onClick={(e) => {
-              const n = new Set(e.shiftKey ? filter : []);
-              if (n.has(f.wert)) n.delete(f.wert); else { n.add(f.wert); if (f.gegenteil) n.delete(f.gegenteil); }
-              waehle(setFilter)(n);
-            }}>{f.titel}</button>
-        ))}
-        {filter.size > 1 && <span className="text-[11px] text-white/40">{filter.size} combined</span>}
-        <label className="flex items-center gap-1.5 text-xs text-white/45">from
-          <input type="number" min={1} value={mindestens} onChange={(e) => waehle(setMindestens)(Math.max(1, Number(e.target.value) || 1))} className={`${feld} w-20 py-1 text-center`} />matches</label>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
-        <div>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
+        <Flaeche fest className="overflow-hidden">
+          <div className="space-y-3 border-b border-white/[0.06] p-4">
+            <div className="ohne-leiste flex gap-1.5 overflow-x-auto">
+              {REGIONEN.map((r) => (
+                <button key={r} type="button" onClick={() => waehle(setRegion)(r)} className={chip(region === r)}>
+                  {r === 'alle' ? 'All' : r}<span className="zahl text-white/40">{jeRegion[r] ?? '–'}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <input value={suche} onChange={(e) => waehle(setSuche)(e.target.value)} placeholder="Name, old name or account ID" spellCheck={false} className={`${feld} w-full sm:w-72`} />
+              <button type="button" onClick={() => waehle(setFilter)(new Set<Filterart>())} className={chip(!filter.size)}>all</button>
+              {FILTER.map((f) => (
+                <button key={f.wert} type="button" title="Shift-click to combine several" className={chip(filter.has(f.wert))}
+                  onClick={(e) => {
+                    const n = new Set(e.shiftKey ? filter : []);
+                    if (n.has(f.wert)) n.delete(f.wert); else { n.add(f.wert); if (f.gegenteil) n.delete(f.gegenteil); }
+                    waehle(setFilter)(n);
+                  }}>{f.titel}</button>
+              ))}
+              {filter.size > 1 && <span className="text-[11px] text-white/40">{filter.size} combined</span>}
+              <label className="flex items-center gap-1.5 text-xs text-white/45 sm:ml-auto">from
+                <input type="number" min={1} value={mindestens} onChange={(e) => waehle(setMindestens)(Math.max(1, Number(e.target.value) || 1))} className={`${feld} w-20 text-center`} />matches</label>
+            </div>
+          </div>
+          <div className="hidden grid-cols-[2.25rem_minmax(0,1.5fr)_3.5rem_minmax(0,1fr)_5.5rem] gap-4 border-b border-white/[0.06] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/35 sm:grid">
+            <span /><span>Player</span><span>Flag</span><span>@ account</span><span className="text-right">Matches</span>
+          </div>
           {laedt ? <p className="py-16 text-center text-sm text-white/45">Loading …</p>
             : !gezeigt.length ? <p className="py-16 text-center text-sm text-white/45">Nobody matches.</p> : (
               <>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-7">
+                <ul className="divide-y divide-white/[0.04]">
                   {gezeigt.slice(0, menge).map((s, i) => {
                     const auf = offen === s.epicId;
                     return (
-                      <motion.button key={s.epicId} type="button" onClick={() => oeffnen(s)} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(i, 28) * 0.012 }}
-                        className={`group rounded-2xl border bg-[#0a0d16]/85 p-2 text-left transition hover:-translate-y-0.5 ${auf ? 'border-akz ring-2 ring-akz/40' : 'border-white/10 hover:border-white/25'}`}>
-                        <span className="relative block aspect-[3/4] overflow-hidden rounded-xl bg-black/30">
-                          {s.foto ? <img src={s.foto} alt="" loading="lazy" className="h-full w-full object-cover object-top" />
-                            : <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-white/[0.06] to-transparent p-2 text-center text-sm font-black uppercase leading-tight text-white/40">{s.name}</span>}
-                          <span className="absolute left-1.5 top-1.5 flex h-6 min-w-[2rem] items-center justify-center rounded bg-black/65 px-1">
-                            {s.land ? <Flagge land={s.land} /> : <span className="text-[10px] font-bold text-amber-300">?</span>}
+                      <motion.li key={s.epicId} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: Math.min(i, 30) * 0.01 }}>
+                        <button type="button" onClick={() => oeffnen(s)}
+                          className={`relative grid w-full grid-cols-[2.25rem_minmax(0,1fr)_3.5rem] items-center gap-x-4 px-4 py-1.5 text-left transition sm:grid-cols-[2.25rem_minmax(0,1.5fr)_3.5rem_minmax(0,1fr)_5.5rem] ${auf ? 'bg-akz/10' : 'hover:bg-white/[0.03]'}`}>
+                          {auf && <motion.span layoutId="spieler-wahl" className="absolute inset-y-0 left-0 w-1 bg-akz" />}
+                          <span className="block h-12 w-9">{s.foto && <img src={s.foto} alt="" loading="lazy" className="h-12 w-9 rounded-lg object-cover object-top" />}</span>
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-bold text-white">{s.name}</span>
+                            <span className="block truncate text-[11px] text-white/40">{s.turniername !== s.name ? s.turniername : s.region}{s.gepflegt ? ' · edited' : ''}</span>
                           </span>
-                        </span>
-                        <span className="mt-2 block truncate text-[13px] font-bold text-white">{s.name}</span>
-                        <span className="block truncate text-[11px]">{s.x ? <span className="text-akz">@{s.x}</span> : <span className="text-white/35">no @ account</span>}</span>
-                      </motion.button>
+                          <span>{s.land ? <Flagge land={s.land} /> : <span className="rounded bg-akz/15 px-1.5 text-[10px] font-bold text-akz">none</span>}</span>
+                          <span className="col-start-2 truncate text-xs sm:col-start-auto">{s.x ? <span className="text-akz">@{s.x}</span> : <span className="text-white/30">no @ account</span>}</span>
+                          <span className="zahl hidden text-right text-xs text-white/50 sm:block">{zahl(s.matches)}</span>
+                        </button>
+                      </motion.li>
                     );
                   })}
-                </div>
+                </ul>
                 {gezeigt.length > menge && (
-                  <button type="button" onClick={() => setMenge((m) => m + SCHRITT)} className="mt-3 w-full rounded-2xl border border-white/10 bg-white/[0.03] py-2.5 text-xs text-white/55 transition hover:border-akz/50 hover:text-akz">
-                    show more ({zahl(gezeigt.length - menge)})
+                  <button type="button" onClick={() => setMenge((m) => m + SCHRITT)} className="w-full border-t border-white/[0.06] py-3 text-xs font-semibold text-white/55 transition hover:text-akz">
+                    Show more ({zahl(gezeigt.length - menge)})
                   </button>
                 )}
               </>
             )}
-        </div>
+        </Flaeche>
 
-        <Glas className="p-5 lg:sticky lg:top-20">
+        <Flaeche fest className="p-5 lg:sticky lg:top-32">
           <AnimatePresence mode="wait">
             {!gewaehlt ? (
               <motion.div key="leer" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="py-12 text-center">
@@ -214,10 +245,7 @@ export default function Spieler({ klassisch }: { klassisch: () => void }) {
             ) : (
               <motion.div key={gewaehlt.epicId} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} className="space-y-4">
                 <div className="flex items-start gap-4">
-                  <span className="block h-28 shrink-0 overflow-hidden rounded-xl bg-black/30" style={{ width: 84 }}>
-                    {gewaehlt.foto ? <img src={gewaehlt.foto} alt="" className="h-full w-full object-cover object-top" />
-                      : <span className="flex h-full w-full items-center justify-center p-1 text-center text-xs font-black uppercase leading-tight text-white/35">{gewaehlt.name}</span>}
-                  </span>
+                  {gewaehlt.foto && <img src={gewaehlt.foto} alt="" className="h-28 w-[84px] shrink-0 rounded-xl object-cover object-top" />}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-xl font-extrabold text-white">{gewaehlt.name}</span>
                     <span className="mt-0.5 block truncate text-[11px] text-white/40">{gewaehlt.turniername}</span>
@@ -266,7 +294,7 @@ export default function Spieler({ klassisch }: { klassisch: () => void }) {
               </motion.div>
             )}
           </AnimatePresence>
-        </Glas>
+        </Flaeche>
       </div>
     </>
   );
