@@ -756,7 +756,7 @@ export default function Karte() {
 
               {tafel === 'zeichnen' && <div className="px-1.5 py-1"><MeineZeichnungen z={z} starten={zeichnenStarten} /></div>}
             </div>
-            <p className="hidden border-t border-white/[0.07] px-5 py-2.5 text-[11px] text-white/35 xl:block">Scroll to zoom, drag to move · Epic's world coordinates{stand ? <> · map image {new Date(stand).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</> : null}{render ? ' · top-down render' : ''}</p>
+            <p className="hidden border-t border-white/[0.07] px-5 py-2.5 text-[11px] text-white/35 xl:block">Scroll to zoom, drag to move · Epic's world coordinates{render ? ' · map: top-down render of the island' : stand ? <> · map image {new Date(stand).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</> : null}</p>
           </>
       </aside>
       )}
@@ -853,8 +853,8 @@ function MarkerInfo({ g, skala, gitter, gruppenGroesse, schliessen }: { g: Grupp
       ) : (
         <>
           <p className="mt-2 text-xs text-white/55">Around grid {feld}{schnitt.length ? ` · avg. spawn chance ${Math.round((schnitt.reduce((a, x) => a + x.wert, 0) / schnitt.length) * 100)}%` : ''}.</p>
-          {/* Die Objekte des Stapels einzeln: Spawn-Chance und Hoehe */}
-          <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto pr-1">
+          {/* Die Objekte des Stapels einzeln (nur festgehalten - also ganz hineingezoomt, wenn sie aufeinander liegen): Spawn-Chance und Hoehe */}
+          {schliessen && <ul className="mt-2 max-h-40 space-y-1 overflow-y-auto pr-1">
             {g.liste.slice(0, 30).map((x, i) => {
               const cx = chanceVon(x);
               return (
@@ -866,8 +866,8 @@ function MarkerInfo({ g, skala, gitter, gruppenGroesse, schliessen }: { g: Grupp
                 </li>
               );
             })}
-          </ul>
-          {g.liste.length > 30 && <p className="mt-1 text-[10px] text-white/40">+{g.liste.length - 30} more – zoom in</p>}
+          </ul>}
+          {schliessen && g.liste.length > 30 && <p className="mt-1 text-[10px] text-white/40">+{g.liste.length - 30} more – zoom in</p>}
         </>
       )}
       {n === 1 && o.name === 'needs key' && <p className="mt-2 text-[11px] text-amber-200/80">Needs a key</p>}
