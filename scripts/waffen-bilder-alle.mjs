@@ -12,7 +12,7 @@
 //      Zuordnung in public/waffen/alle.json. Wo es nur ein Quadrat mit Hintergrund gibt: behalten, mit f: 0 markiert (die Seite zeigt es eingepasst).
 // Hoeflich: wenige Anfragen gleichzeitig, bei 429/5xx Pause und neu.
 //
-//   node waffen-bilder-alle.mjs <Ordner mit hub/waffenWiki.js + hub/waffenNamen.js> <Ausgabeordner>
+//   node waffen-bilder-alle.mjs <Ordner mit waffenWiki.mjs + waffenNamen.mjs (gebuendelt aus hub-vorschau)> <Ausgabeordner>
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -32,6 +32,9 @@ const RAR = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'exoti
 const protokoll = [];
 const echtFetch = globalThis.fetch;
 globalThis.fetch = async (u, o = {}) => {
+  // Wie der Vite-Proxy des Hubs: /fandom/... -> fortnite.fandom.com, /wikia/... -> static.wikia.nocookie.net
+  if (typeof u === 'string' && u.startsWith('/fandom/')) u = `https://fortnite.fandom.com/${u.slice(8)}`;
+  if (typeof u === 'string' && u.startsWith('/wikia/')) u = `https://static.wikia.nocookie.net/${u.slice(7)}`;
   const t = Date.now(); const adresse = String(u);
   try {
     const r = await echtFetch(u, { ...o, headers: { ...KOPF, ...(o.headers ?? {}) } });
@@ -92,13 +95,13 @@ async function bildLaden(url) {
 }
 
 /* ---------------------------------------------- 1. Die Liste des Hubs */
-const { alleWaffenLesen } = await import(pathToFileURL(path.join(HUB, 'waffenWiki.js')).href);
-const { bildNachName, kern } = await import(pathToFileURL(path.join(HUB, 'waffenNamen.js')).href);
+const { alleWaffenLesen } = await import(pathToFileURL(path.join(HUB, 'waffenWiki.mjs')).href);
+const { bildNachName, kern } = await import(pathToFileURL(path.join(HUB, 'waffenNamen.mjs')).href);
 const t0 = Date.now();
 const liste = await alleWaffenLesen();
 const hubProtokoll = protokoll.splice(0);
 console.log(`Hub-Liste: ${liste.length} Waffen in ${Math.round((Date.now() - t0) / 1000)} s, ${hubProtokoll.length} Anfragen`);
-const hubFehler = hubProtokoll.filter((e) => e.f && !e.u.startsWith('/') || (e.s && e.s !== 200) || e.fehler);
+const hubFehler = hubProtokoll.filter((e) => e.f || (e.s && e.s !== 200) || e.fehler);
 
 // /api/waffen-bilder wie im Hub (Waffen.tsx useWiki): Kern der Kennung -> { name, bild }
 const tabelle = await (await fetch('https://www.thecomphub.com/api/waffen-bilder')).json().catch(() => ({}));
@@ -153,7 +156,7 @@ const NICHT_WAFFE = /\b(map|location|loading|screenshot|spray|emote|wrap|banner|
 const dateienIn = (v) => [...(v ?? '').matchAll(/([^|[\]{}=\n:]+?\.(?:png|jpe?g|webp|gif))/gi)].map((m) => `File:${m[1].trim()}`);
 
 // Infobox-Dateien (je Seltenheit, soweit erkennbar) aus dem Quelltext - mit vorlagen() des Hubs
-const { vorlagen, seiteLesen } = await import(pathToFileURL(path.join(HUB, 'waffenWiki.js')).href);
+const { vorlagen, seiteLesen } = await import(pathToFileURL(path.join(HUB, 'waffenWiki.mjs')).href);
 const kandidaten = new Map(); // Waffe -> [{ datei, infobox, rar, seitenBild, name }]
 const alleDateien = new Set();
 for (const w of liste) {

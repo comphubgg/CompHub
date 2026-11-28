@@ -19,7 +19,7 @@ jobs:
           mkdir -p /tmp/hub /tmp/w
           git archive FETCH_HEAD src/seiten/community/waffenWiki.ts src/seiten/community/waffenNamen.ts src/seiten/community/spielSymbole.json src/seiten/community/waffenDaten.ts | tar x -C /tmp/hub
           cd /tmp/w && npm init -y >/dev/null && npm i --no-audit --no-fund sharp@0.34.5 esbuild@0.25.0 react@18.3.1
-          npx esbuild /tmp/hub/src/seiten/community/waffenWiki.ts /tmp/hub/src/seiten/community/waffenNamen.ts --bundle --format=esm --platform=node --external:react --outdir=/tmp/w/hub
+          npx esbuild /tmp/hub/src/seiten/community/waffenWiki.ts /tmp/hub/src/seiten/community/waffenNamen.ts --bundle --format=esm --platform=node --external:react --out-extension:.js=.mjs --outdir=/tmp/w/hub
           cp "$GITHUB_WORKSPACE/scripts/waffen-bilder-alle.mjs" /tmp/w/
       - name: Laden
         run: cd /tmp/w && node waffen-bilder-alle.mjs /tmp/w/hub "$GITHUB_WORKSPACE/aus"
