@@ -19,7 +19,7 @@ export default function NurVip({ titel = 'VIPs only', text }: { titel?: string; 
   const { oeffnen } = useWer();
   return (
     <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="fl-fest grid overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+      className="fl-fest grid grid-cols-[minmax(0,1fr)] overflow-hidden lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <div className="p-7 sm:p-10">
         <StufenMarke vip />
         <h1 className="titel mt-4 text-5xl sm:text-6xl">{titel}</h1>
