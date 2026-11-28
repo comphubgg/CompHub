@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useJetzt } from '../../ds/Bausteine';
 
 /*
@@ -10,6 +10,7 @@ import { useJetzt } from '../../ds/Bausteine';
  *   <Regler>     Schieberegler mit Beschriftung und Wert
  *   <Kopieren>   "Copy link"-Knopf
  *   <Stand>      Fortschrittsleiste mit Beschriftung
+ *   useResthoehe Seiten, die den Bildschirm unter der Leiste genau ausfuellen
  *   <Symbol>     Bild, das nie groesser als seine echte Groesse gezeigt wird; fehlt es, steht dort nichts (Betreiber: "Bild oder gar nichts")
  */
 
@@ -105,4 +106,20 @@ export function Symbol({ src, alt = '', className = '', schatten = true }: { src
         className={`object-contain ${schatten ? 'drop-shadow-[0_14px_22px_rgba(0,0,0,0.65)]' : ''}`} />
     </span>
   );
+}
+
+/**
+ * Fuer Seiten, die den Bildschirm unter Kopf und Leiste genau ausfuellen (Karte, Map Evolution): `ref` an den Seitenrahmen, `stil` setzt
+ * --oben (Abstand des Rahmens vom oberen Rand) - die Hoehe ist dann z. B. h-[calc(100dvh-var(--oben))]. Misst mehrmals, weil die Leiste
+ * ihre Hoehe noch aendert, wenn die Schrift geladen ist.
+ */
+export function useResthoehe<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [oben, setOben] = useState(102);
+  useEffect(() => {
+    const messen = () => { const el = ref.current; if (el) setOben(Math.round(el.getBoundingClientRect().top + window.scrollY)); };
+    messen(); const t = [150, 600, 1500, 3000].map((ms) => setTimeout(messen, ms)); document.fonts?.ready.then(messen).catch(() => {});
+    window.addEventListener('resize', messen); return () => { t.forEach(clearTimeout); window.removeEventListener('resize', messen); };
+  }, []);
+  return { ref, stil: { '--oben': `${oben}px` } as CSSProperties };
 }

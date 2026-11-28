@@ -9,7 +9,7 @@ import Uebersicht from './Uebersicht';
  * Community-Bereich (Betreiber, 26.11.2026: "alles, was fortnite.gg hat, plus genaue Details, die sonst niemand hat"). Rahmen seit dem
  * Design-System 3.0: die gemeinsame Schale (src/ds/Schale.tsx) - Kopf, "Menu"-Fenster mit allen Seiten und die kurze Leiste der Hauptseiten;
  * die Seitenliste steht in src/ds/seiten.ts (dort auch "Notifications"). Gemountet unter /community/* (src/App.tsx), daher die eigenen Routes hier.
- * Die Karte laeuft ohne Innenabstand (ohneRand): sie fuellt den ganzen Bildschirm unter der Leiste.
+ * Karte und Map Evolution laufen ohne Innenabstand (ohneRand): sie fuellen den ganzen Bildschirm unter der Leiste.
  */
 const Karte = lazy(() => import('./Karte'));
 const Waffen = lazy(() => import('./Waffen'));
@@ -21,7 +21,7 @@ export default function Community() {
   const pfad = useLocation().pathname.replace(/\/$/, '');
   // Schluessel fuer den Seitenwechsel: die Seite ohne Unterpfad (Wechsel innerhalb einer Waffe/eines Kosmetikteils blendet nicht neu ein)
   const seitenSchluessel = pfad.replace(/^\/community\/?/, '').split('/').slice(0, 2).join('/');
-  const vollflaechig = pfad === '/community/map';
+  const vollflaechig = pfad === '/community/map' || pfad === '/community/map-evolution';
   return (
     <Schale bereich="community" ohneRand={vollflaechig}>
       <MotionConfig reducedMotion="user">
