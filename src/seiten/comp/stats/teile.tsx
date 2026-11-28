@@ -44,14 +44,3 @@ export function Portraet({ bild, gross = 48, platz = false }: { bild?: string | 
   if (bild) return <img src={bild} alt="" loading="lazy" draggable={false} className="shrink-0 rounded-lg object-cover object-top ring-1 ring-white/10" style={mass} />;
   return platz ? <span aria-hidden className="shrink-0" style={mass} /> : null;
 }
-
-/* --- Uebergang: bis Deep Stats und Replays neu gebaut sind --- */
-export { Laedt } from '../../../ds/Bausteine';
-export function Kopfzeile({ nr, titel, text, rechts }: { nr?: string; titel: string; text?: ReactNode; rechts?: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-end justify-between gap-4">
-      <div className="min-w-0 max-w-4xl">{nr && <p className="ueber">{nr}</p>}<h2 className="titel mt-1 text-3xl">{titel}</h2>{text && <p className="mt-1.5 text-sm leading-relaxed text-white/50">{text}</p>}</div>
-      {rechts}
-    </div>
-  );
-}
